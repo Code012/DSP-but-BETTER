@@ -6,11 +6,13 @@ Refactored 12/09/2025
 
 
 
+#include <cstdint>
 template <size_t SIZE>  
 struct BumpAllocator 
 {
     unsigned char *memory;
     U64 size{SIZE};
+    U64 previous_offset{};
     U64 current_offset{};
     int alloc_counter{};
 
@@ -55,6 +57,7 @@ struct BumpAllocator
         if ( (num_bytes + aligned_offset) <= size ) 
         {
             void *allocated_ptr = &memory[aligned_offset];
+            previous_offset = aligned_offset;
             current_offset = aligned_offset+num_bytes;
 
             if (zero) { MemoryZero(allocated_ptr, num_bytes); }
@@ -68,6 +71,40 @@ struct BumpAllocator
                   << "Need: " << (aligned_offset + num_bytes)
                   <<", Available: " << size << std::endl;
         return nullptr;
+    }
+
+    ArenaResize(void* old_memory, U64 old_size, U64 new_size, U64 align=DefaultAlign(1))
+    {
+        // Mimics realloc. When ptr is NULL, just allocate memory
+        if (!old_memory || old_size=0)
+        {
+            return ArenaPush<unsigned char>(size, align, 1);
+        }
+
+        // Out of bounds
+        if (old_ptr < base_ptr || old_ptr >= base_ptr + size)
+        {
+            std::cerr << "Old memory is out of bounds!\n";
+            return nullptr;
+        }
+
+        // Fast path: old memory is latest allocation
+        if (previous_offset == old_memory)
+        {
+            current_offset = previous_offset + new_size;
+            if (new_size > old_size)
+            {
+                MemoryZero(memory[current_offset], new_size-old_size);
+            }
+            return old_memory;
+        }
+
+        // Slow path: allocate new and copy
+        void *new_mem = ArenaPush<unsigned char>(new_size, align, 1);
+
+        U64 copy_size = old_size < new_size ? old_size : new_size;
+        MemoryCopy(new_mem, old_mem, copy_size);
+        return new_mem;
     }
 
     void ArenaRelease()
