@@ -28,7 +28,7 @@ struct BumpAllocator
     BumpAllocator& operator=(BumpAllocator&&) = delete;
 
     template <typename T>
-    T* ArenaPush(U64 count, U64 align, B32 zero) 
+    T* ArenaPush(U64 num_bytes, U64 align, B32 zero) 
     {
         
         if (!memory) 
@@ -37,7 +37,6 @@ struct BumpAllocator
             return nullptr;
         }
 
-        U64 num_bytes = sizeof(T) * count; // size to allocate
 
         // Check for appropriate allocation size, 
         // Greater than 0 or if its greater than the maximum size
@@ -62,7 +61,7 @@ struct BumpAllocator
 
             if (zero) { MemoryZero(allocated_ptr, num_bytes); }
 
-            alloc_counter += static_cast<int>(count);
+            alloc_counter += static_cast<int>(num_bytes/sizeof(T));
 
             return reinterpret_cast<T*>(allocated_ptr);
         }
@@ -73,14 +72,18 @@ struct BumpAllocator
         return nullptr;
     }
 
-    ArenaResize(void* old_memory, U64 old_size, U64 new_size, U64 align=DefaultAlign(1))
+    template <typename T>
+    T* ArenaResize(void* old_memory, U64 old_size, U64 new_size, U64 align=DefaultAlign(1))
     {
+        unsigned char *old_mem = static_cast<unsigned char*>(old_memory);
         // Mimics realloc. When ptr is NULL, just allocate memory
-        if (!old_memory || old_size=0)
+        if (!old_mem || old_size==0)
         {
-            return ArenaPush<unsigned char>(size, align, 1);
+            return ArenaPush<T>(new_size, align, 1);
         }
 
+        uintptr_t old_ptr = reinterpret_cast<uintptr_t>(old_mem);
+        uintptr_t base_ptr = reinterpret_cast<uintptr_t>(memory);
         // Out of bounds
         if (old_ptr < base_ptr || old_ptr >= base_ptr + size)
         {
@@ -89,21 +92,24 @@ struct BumpAllocator
         }
 
         // Fast path: old memory is latest allocation
-        if (previous_offset == old_memory)
+        if (memory+previous_offset == old_mem)
         {
             current_offset = previous_offset + new_size;
             if (new_size > old_size)
             {
-                MemoryZero(memory[current_offset], new_size-old_size);
+                MemoryZero(&memory[current_offset], new_size-old_size);
             }
-            return old_memory;
+            return reinterpret_cast<T*>(old_memory);
         }
 
         // Slow path: allocate new and copy
-        void *new_mem = ArenaPush<unsigned char>(new_size, align, 1);
+        T* new_mem = ArenaPush<T>(new_size, align, 1);
 
-        U64 copy_size = old_size < new_size ? old_size : new_size;
-        MemoryCopy(new_mem, old_mem, copy_size);
+        if (new_mem)
+        {
+            U64 copy_size = (old_size < new_size) ? old_size : new_size;
+            MemoryCopy(new_mem, old_mem, copy_size);
+        }
         return new_mem;
     }
 
@@ -149,12 +155,12 @@ struct BumpAllocator
     template <typename T>
     T* PushArray(U64 count, U64 align=DefaultAlign(alignof(T)), B32 zero=1)
     {
-        return ArenaPush<T>(count, align, zero);
+        return ArenaPush<T>(sizeof(T) * count, align, zero);
     }
     template <typename T>
     T* PushArrayNoZero(U64 count, U64 align=DefaultAlign(alignof(T)))
     {
-        return ArenaPush<T>(count, align, 0);
+        return ArenaPush<T>(sizeof(T) * count, align, 0);
     }
 };
 
