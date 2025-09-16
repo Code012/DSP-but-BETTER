@@ -298,6 +298,85 @@ DEFINE_TEST_G(ArenaLargeAllocation, Bump)
     }
 }
 
+// Test arena resize - fast path (last allocation)
+DEFINE_TEST_G(ArenaResizeFastPath, Bump)
+{
+    BumpAllocator<1024> arena;
+
+    // Allocate initial block
+    int* ptr = arena.PushArray<int>(4);
+    TEST(ptr != nullptr);
+
+    // Write initial values
+    for (int i = 0; i < 4; ++i) ptr[i] = i + 1;
+
+    // Resize in-place (fast path)
+    int* resized_ptr = arena.ArenaResize<int>(ptr, 4 * sizeof(int), 8 * sizeof(int));
+    TEST(resized_ptr == ptr); // Should be same pointer
+    TEST(arena.ArenaGetPos() >= 8 * sizeof(int));
+
+    // Verify old values are intact
+    for (int i = 0; i < 4; ++i) TEST_EQ(resized_ptr[i], i + 1);
+
+    // Write to new portion
+    for (int i = 4; i < 8; ++i) resized_ptr[i] = i + 1;
+    for (int i = 0; i < 8; ++i) TEST_EQ(resized_ptr[i], i + 1);
+}
+
+// Test arena resize - slow path (not last allocation)
+DEFINE_TEST_G(ArenaResizeSlowPath, Bump)
+{
+    BumpAllocator<1024> arena;
+
+    // Allocate first block
+    int* first = arena.PushArray<int>(2);
+    TEST(first != nullptr);
+    first[0] = 10; first[1] = 20;
+
+    // Allocate second block (will not be last if we resize first)
+    int* second = arena.PushArray<int>(2);
+    TEST(second != nullptr);
+    second[0] = 30; second[1] = 40;
+
+    // Resize the first block (slow path)
+    int* resized_first = arena.ArenaResize<int>(first, 2 * sizeof(int), 4 * sizeof(int));
+    TEST(resized_first != nullptr);
+    TEST(resized_first != first); // New memory allocated
+
+    // Old data should be preserved
+    TEST_EQ(resized_first[0], 10);
+    TEST_EQ(resized_first[1], 20);
+
+    // Write to new portion
+    resized_first[2] = 50;
+    resized_first[3] = 60;
+    TEST_EQ(resized_first[2], 50);
+    TEST_EQ(resized_first[3], 60);
+}
+
+// Test arena resize - edge cases
+DEFINE_TEST_G(ArenaResizeEdgeCases, Bump)
+{
+    BumpAllocator<1024> arena;
+
+    // Resize NULL pointer (should allocate new)
+    int* ptr = arena.ArenaResize<int>(nullptr, 0, 4 * sizeof(int));
+    TEST(ptr != nullptr);
+    for (int i = 0; i < 4; ++i) ptr[i] = i;
+    for (int i = 0; i < 4; ++i) TEST_EQ(ptr[i], i);
+
+    // Resize to smaller size (in-place shrink)
+    int* shrink_ptr = arena.ArenaResize<int>(ptr, 4 * sizeof(int), 2 * sizeof(int));
+    TEST(shrink_ptr == ptr);
+    TEST(arena.ArenaGetPos() >= 2 * sizeof(int));
+    TEST_EQ(shrink_ptr[0], 0);
+    TEST_EQ(shrink_ptr[1], 1);
+
+    // Resize to zero (optional: expect nullptr or minimal allocation)
+    int* zero_ptr = arena.ArenaResize<int>(ptr, 2 * sizeof(int), 0);
+    TEST(zero_ptr != nullptr); // depends on your implementation; at least should not crash
+}
+
 int main(void) 
 {
     bool pass = true;
