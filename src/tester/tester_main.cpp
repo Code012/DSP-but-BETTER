@@ -11,6 +11,7 @@
 
 char const *groups[] = {
     "Bump",
+    "String",
 };
 
 // Test basic arena construction and destruction
@@ -372,9 +373,132 @@ DEFINE_TEST_G(ArenaResizeEdgeCases, Bump)
     TEST_EQ(shrink_ptr[0], 0);
     TEST_EQ(shrink_ptr[1], 1);
 
-    // Resize to zero (optional: expect nullptr or minimal allocation)
+    // Resize to zero, should just be the same pointer 
     int* zero_ptr = arena.ArenaResize<int>(ptr, 2 * sizeof(int), 0);
-    TEST(zero_ptr != nullptr); // depends on your implementation; at least should not crash
+    TEST(zero_ptr != nullptr); 
+    TEST_EQ(zero_ptr, ptr);
+}
+    
+
+// Test String8 literal construction on stack
+DEFINE_TEST_G(Str8Literal, String)
+{
+    constexpr String8 s = str8_lit_const("Hello");
+    TEST_EQ(s.length, 5);
+    TEST_EQ(std::strncmp(s.value, "Hello", 5), 0);
+}
+
+// Test building strings with Str8Builder (simple append)
+DEFINE_TEST_G(Str8BuildBasic, String)
+{
+    BumpAllocator<1024> arena;
+    Str8Builder builder{};
+
+    // First allocation
+    Str8BuildCStr(arena, builder, "Hello");
+    TEST_EQ(builder.length, 5);
+    TEST_EQ(std::strcmp(builder.buffer, "Hello"), 0);
+
+    // Append
+    Str8BuildCStr(arena, builder, " World");
+    TEST_EQ(builder.length, 11);
+    TEST_EQ(std::strcmp(builder.buffer, "Hello World"), 0);
+}
+
+// Test automatic resize (grow capacity)
+DEFINE_TEST_G(Str8BuilderResize, String)
+{
+    BumpAllocator<64> arena; 
+    Str8Builder builder{};
+
+    Str8BuildCStr(arena, builder, "A very long string that will exceed the default capacity...");
+
+    TEST(builder.capacity >= builder.length + 1);
+    TEST_EQ(std::strcmp(builder.buffer, "A very long string that will exceed the default capacity..."), 0);
+}
+
+// Test formatted string build
+DEFINE_TEST_G(Str8BuildFormatted, String)
+{
+    BumpAllocator<256> arena;
+    Str8Builder builder{};
+
+    Str8BuildF(arena, builder, "Hello %s, number %d", "World", 42);
+
+    TEST_EQ(builder.length, std::strlen("Hello World, number 42"));
+    TEST_EQ(std::strcmp(builder.buffer, "Hello World, number 42"), 0);
+}
+
+// Test multiple builds (ensure concatenation works with resize)
+DEFINE_TEST_G(Str8BuildMultiple, String)
+{
+    BumpAllocator<128> arena;
+    Str8Builder builder{};
+
+    Str8BuildCStr(arena, builder, "foo");
+    Str8BuildCStr(arena, builder, "bar");
+    Str8BuildF(arena, builder, "%d", 123);
+
+    TEST_EQ(std::strcmp(builder.buffer, "foobar123"), 0);
+}
+
+// Test appending empty string
+DEFINE_TEST_G(Str8BuildEmptyAppend, String)
+{
+    BumpAllocator<128> arena;
+    Str8Builder builder{};
+
+    Str8BuildCStr(arena, builder, "");
+    TEST_EQ(builder.length, 0);
+
+    Str8BuildCStr(arena, builder, "Hello");
+    TEST_EQ(builder.length, 5);
+    TEST_EQ(std::strcmp(builder.buffer, "Hello"), 0);
+}
+
+
+// Test appending when arena runs out of memory
+DEFINE_TEST_G(Str8BuildArenaExhaustion, String)
+{
+    BumpAllocator<32> tiny_arena;
+    Str8Builder builder{};
+
+    // This will fit
+    Str8BuildCStr(tiny_arena, builder, "Hello");
+
+    // This will exceed available memory
+    Str8BuildCStr(tiny_arena, builder, "This string is way too big for 32 bytes");
+
+    // Expect builder buffer to still contain the old value
+    TEST_EQ(std::strcmp(builder.buffer, "Hello"), 0);
+}
+
+// Test multiple resizes with concatenation
+DEFINE_TEST_G(Str8BuildStressResize, String)
+{
+    BumpAllocator<256> arena;
+    Str8Builder builder{};
+
+    for (int i = 0; i < 20; ++i) {
+        Str8BuildF(arena, builder, "X%d", i);
+    }
+
+    TEST(builder.length > 0);
+    TEST(std::strstr(builder.buffer, "X0") != nullptr);
+    TEST(std::strstr(builder.buffer, "X19") != nullptr);
+}
+
+// Test typical usage of stiring api
+DEFINE_TEST_G(Str8String, String)
+{
+    BumpAllocator<256> arena;
+    Str8Builder builder{};
+
+    Str8Build(arena, builder, str8_lit_const("YOYO"));
+    String8 str1 = builder.string();
+    TEST_EQ(std::strcmp(str1.value, "YOYO"), 0);
+    TEST_EQ(str1.length, 4);
+
 }
 
 int main(void) 
