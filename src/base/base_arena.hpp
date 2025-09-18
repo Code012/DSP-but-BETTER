@@ -33,7 +33,7 @@ struct BumpAllocator
         
         if (!memory) 
         {
-            std::cerr << "Bad Alloc" << std::endl;
+            std::cerr << "Push: Bad Alloc" << std::endl;
             return nullptr;
         }
 
@@ -75,6 +75,12 @@ struct BumpAllocator
     template <typename T>
     T* ArenaResize(void* old_memory, U64 old_size, U64 new_size, U64 align=DefaultAlign(1))
     {
+        if (!memory) 
+        {
+            std::cerr << "Resize: Bad Alloc" << std::endl;
+            return nullptr;
+        }
+
         unsigned char *old_mem = static_cast<unsigned char*>(old_memory);
         // Mimics realloc. When ptr is NULL, just allocate memory
         if (!old_mem || old_size==0)
@@ -94,6 +100,7 @@ struct BumpAllocator
         // Fast path: old memory is latest allocation
         if (memory+previous_offset == old_mem)
         {
+            if (previous_offset + new_size > size) { return nullptr;  } // not enough memory
             current_offset = previous_offset + new_size;
             if (new_size > old_size)
             {
