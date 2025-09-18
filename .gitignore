@@ -1,5 +1,9 @@
 build/*
+misc/*
+!misc/test.sln
 
 .vscode
+.vs
+
 
 
