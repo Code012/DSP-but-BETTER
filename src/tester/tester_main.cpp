@@ -373,7 +373,7 @@ DEFINE_TEST_G(ArenaResizeEdgeCases, Bump)
     TEST_EQ(shrink_ptr[0], 0);
     TEST_EQ(shrink_ptr[1], 1);
 
-    // Resize to zero, should just be the same pointer 
+    // Resize to zero, should just be the same pointer     
     int* zero_ptr = arena.ArenaResize<int>(ptr, 2 * sizeof(int), 0);
     TEST(zero_ptr != nullptr); 
     TEST_EQ(zero_ptr, ptr);
@@ -383,38 +383,69 @@ DEFINE_TEST_G(ArenaResizeEdgeCases, Bump)
 // Test String8 literal construction on stack
 DEFINE_TEST_G(Str8Literal, String)
 {
-    constexpr String8 s = str8_lit_const("Hello");
+    String8 s{"Hello"};
     TEST_EQ(s.length, 5);
-    TEST_EQ(std::strncmp(s.value, "Hello", 5), 0);
+    TEST(str8_match_cstr("Hello", s));
+
+    String8 t = "Helloo";
+    TEST_EQ(t.length, 6);
+    TEST(str8_match_cstr("Helloo", t));
+
+    
 }
 
-// Test building strings with Str8Builder (simple append)
+
+// Test building strings with Str8Builder and simple append
 DEFINE_TEST_G(Str8BuildBasic, String)
 {
     BumpAllocator<1024> arena;
     Str8Builder builder{};
-
     // First allocation
     Str8BuildCStr(arena, builder, "Hello");
     TEST_EQ(builder.length, 5);
-    TEST_EQ(std::strcmp(builder.buffer, "Hello"), 0);
-
+    TEST_EQ(builder.capacity, 5); // capacity will be same because it was just created
+    TEST(str8_match_cstr("Hello", builder.string()));
     // Append
     Str8BuildCStr(arena, builder, " World");
-    TEST_EQ(builder.length, 11);
-    TEST_EQ(std::strcmp(builder.buffer, "Hello World"), 0);
+    TEST_EQ(builder.length, 11);    
+    TEST_EQ(builder.capacity, 11); // 11>5*2 
+    TEST(str8_match_cstr("Hello World", builder.string()));
 }
 
-// Test automatic resize (grow capacity)
-DEFINE_TEST_G(Str8BuilderResize, String)
+// Test string capacity resize
+DEFINE_TEST_G(Str8BuildResize, String)
 {
-    BumpAllocator<64> arena; 
+    BumpAllocator<1024> arena;
     Str8Builder builder{};
 
-    Str8BuildCStr(arena, builder, "A very long string that will exceed the default capacity...");
+    Str8BuildCStr(arena, builder, "Hello");
+    TEST_EQ(builder.length, 5);
+    TEST_EQ(builder.capacity, 5);
+    char* old_buffer = builder.buffer;
 
-    TEST(builder.capacity >= builder.length + 1);
-    TEST_EQ(std::strcmp(builder.buffer, "A very long string that will exceed the default capacity..."), 0);
+    // capacity should double
+    Str8BuildCStr(arena, builder, " World"); // length and capacity 11
+    Str8BuildCStr(arena, builder, " JOE!");
+    TEST_EQ(builder.length, 16);
+    TEST_EQ(builder.capacity, 22); // 11*2
+
+    // make a new string after this
+    Str8Builder new_builder{};
+
+    Str8BuildCStr(arena, new_builder, "NEWSTRING"); // length and capacity 9
+
+    // force a resize again in the old string, so its allocated
+    // in new block after "NEWSTRING"
+
+    Str8BuildCStr(arena, builder, "REALLY LONG STRING LLOLOLOLOLOLOLOLOLOLOL");
+    TEST_EQ(builder.length, 57);
+    TEST_EQ(builder.capacity, 57);
+
+    TEST_NEQ(old_buffer, builder.buffer);       // buffer has changed
+    // new buffer is after the two old allocations
+    TEST(builder.buffer > old_buffer);   
+    TEST(builder.buffer > new_builder.buffer);
+
 }
 
 // Test formatted string build
@@ -425,9 +456,27 @@ DEFINE_TEST_G(Str8BuildFormatted, String)
 
     Str8BuildF(arena, builder, "Hello %s, number %d", "World", 42);
 
-    TEST_EQ(builder.length, std::strlen("Hello World, number 42"));
-    TEST_EQ(std::strcmp(builder.buffer, "Hello World, number 42"), 0);
+    TEST_EQ(builder.length, cstring8_length("Hello World, number 42"));
+    TEST(str8_match_cstr("Hello World, number 42", builder.string()));
 }
+
+// Test multiple resizes with formatted builder and that it
+// interfaces with std library functions (null-terminated)
+DEFINE_TEST_G(Str8BuildFormattedResize, String)
+{
+    BumpAllocator<256> arena;
+    Str8Builder builder{};
+
+    for (int i = 0; i < 20; ++i) {
+        Str8BuildF(arena, builder, "X%d", i);
+    }
+
+    TEST_EQ(builder.length, 50);
+    TEST(std::strstr(builder.buffer, "X0") != nullptr);
+    TEST(std::strstr(builder.buffer, "X19") != nullptr); //  replace strstr with own function for fun to build base layer
+    TEST_EQ(builder.buffer[builder.length],'\0');
+}
+
 
 // Test multiple builds (ensure concatenation works with resize)
 DEFINE_TEST_G(Str8BuildMultiple, String)
@@ -437,9 +486,16 @@ DEFINE_TEST_G(Str8BuildMultiple, String)
 
     Str8BuildCStr(arena, builder, "foo");
     Str8BuildCStr(arena, builder, "bar");
-    Str8BuildF(arena, builder, "%d", 123);
+    Str8BuildF(arena, builder, "%d", 123); // because this was used last, should be null-terminated
 
-    TEST_EQ(std::strcmp(builder.buffer, "foobar123"), 0);
+    TEST(str8_match_cstr("foobar123", builder.string()));
+    TEST_EQ(builder.length, 9);
+    TEST_EQ(builder.capacity, 12);
+    TEST_EQ(builder.buffer[builder.length],'\0');
+
+    // now because its not the formatted builder, it wont be null-terminated
+    Str8BuildCStr(arena, builder, "!");
+    TEST_NEQ(builder.buffer[builder.length],'\0');
 }
 
 // Test appending empty string
@@ -453,7 +509,7 @@ DEFINE_TEST_G(Str8BuildEmptyAppend, String)
 
     Str8BuildCStr(arena, builder, "Hello");
     TEST_EQ(builder.length, 5);
-    TEST_EQ(std::strcmp(builder.buffer, "Hello"), 0);
+    TEST(str8_match_cstr("Hello", builder.string()));
 }
 
 
@@ -470,23 +526,10 @@ DEFINE_TEST_G(Str8BuildArenaExhaustion, String)
     Str8BuildCStr(tiny_arena, builder, "This string is way too big for 32 bytes");
 
     // Expect builder buffer to still contain the old value
-    TEST_EQ(std::strcmp(builder.buffer, "Hello"), 0);
+    TEST(str8_match_cstr("Hello", builder.string()));
 }
 
-// Test multiple resizes with concatenation
-DEFINE_TEST_G(Str8BuildStressResize, String)
-{
-    BumpAllocator<256> arena;
-    Str8Builder builder{};
 
-    for (int i = 0; i < 20; ++i) {
-        Str8BuildF(arena, builder, "X%d", i);
-    }
-
-    TEST(builder.length > 0);
-    TEST(std::strstr(builder.buffer, "X0") != nullptr);
-    TEST(std::strstr(builder.buffer, "X19") != nullptr);
-}
 
 // Test typical usage of stiring api
 DEFINE_TEST_G(Str8String, String)
@@ -494,13 +537,87 @@ DEFINE_TEST_G(Str8String, String)
     BumpAllocator<256> arena;
     Str8Builder builder{};
 
-    Str8Build(arena, builder, str8_lit_const("YOYO"));
+    Str8BuildCStr(arena, builder, "Hey, I am 104 years old");
     String8 str1 = builder.string();
-    TEST_EQ(std::strcmp(str1.value, "YOYO"), 0);
-    TEST_EQ(str1.length, 4);
+    TEST(str8_match_cstr("Hey, I am 104 years old", str1));
+    TEST_EQ(str1.length, 23);
 
+    Str8Builder b2{};
+    Str8BuildF(arena, b2, "Hey, I am %d years old", 104);
+    String8 str2 = b2.string();
+
+    B32 result = ((str1 == str2) ? 1:0);
+    TEST_EQ(result, 1);
+
+    TEST_EQ(str1[0], 'H');
+
+    // Test the copy/move assignment and constructors too
+    // They should just copy the buffer and length, so it'll
+    // create another string view. Nothing harmful.
 }
 
+// // Test 
+// DEFINE_TEST_G(String8OperatorIndex, String)
+// {
+//     String8 s = str8_lit("Hello");
+
+//     // Normal indexing
+//     TEST_EQ(s[0], 'H');
+//     TEST_EQ(s[1], 'e');
+//     TEST_EQ(s[4], 'o');
+
+//     // Out-of-bounds indexing (should return '\0')
+//     TEST_EQ(s[5], '\0');  // right at length
+//     TEST_EQ(s[10], '\0'); // well past length
+//     TEST_EQ(s[100], '\0');
+//     TEST_EQ(s[-1], '\0');
+
+//     // Edge case: empty string
+//     String8 empty { nullptr, 0 };
+//     TEST_EQ(empty[0], '\0');
+// }
+
+
+// DEFINE_TEST_G(String8Substr, String)
+// {
+//     String8 s{"Hello, World!", 13};
+//
+//     // Simple substring
+//     String8 sub1 = s.substr(0, 5);
+//     TEST_EQ(sub1.length, 5);
+//     sub1.print();
+//     TEST_EQ(std::strcmp(sub1.value, "Hello,"), 0);//faa
+//
+//     // Middle substring
+//     String8 sub2 = s.substr(7, 12);
+//     TEST_EQ(sub2.length, 5);//faa
+//     sub2.print();
+//     TEST_EQ(std::strcmp(sub2.value, "World!"), 0);//faa
+//
+//     // Full string
+//     String8 sub3 = s.substr(0, s.length);
+//     TEST_EQ(sub3.length, s.length);
+//     sub3.print();
+//     TEST_EQ(std::strcmp(sub3.value, "Hello, World!"), 0);
+//
+//     // Empty substring (start == end)
+//     String8 sub4 = s.substr(5, 5);
+//     TEST_EQ(sub4.length, 0);//faa
+//     sub4.print();
+//     TEST_EQ(sub4.value[0], '\0');//faa
+//
+//     // Substring exceeding bounds
+//     String8 sub5 = s.substr(10, 50);
+//     TEST_EQ(sub5.length, 3); // Clamped to end//faa
+//     sub5.print();
+//     TEST_EQ(std::strcmp(sub5.value, "ld!"), 0);
+//
+//     // Substring starting beyond length
+//     String8 sub6 = s.substr(20, 25);
+//     TEST_EQ(sub6.length, 0); // Clamped to 0//faa
+//     sub6.print();
+//     TEST_EQ(sub6.value[0], '\0');
+// }
 int main(void) 
 {
     bool pass = true;
