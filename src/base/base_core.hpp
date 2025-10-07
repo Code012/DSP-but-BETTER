@@ -61,11 +61,16 @@ internal inline void
 MemoryCopy(void *dst, const void *src, std::size_t size);
 internal inline void 
 MemoryZero(void *dst, std::size_t size);
+internal inline B32
+MemoryCompare(const void* lhs, const void* rhs, std::size_t count);
 
 template <typename T>
 inline void MemoryZeroStruct(T& obj);
 template <typename T, std::size_t N>
 inline void MemoryZeroArray(T (&arr)[N]);
+
+internal inline B32 
+MemoryMatch(const void* lhs, const void* rhs, std::size_t count);
 
 U64 DefaultAlign(U64 align);
 #endif // BASE_CORE_H
