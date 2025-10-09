@@ -46,31 +46,53 @@ constexpr U64 Billion(U64 n) { return n*1000000000; }
 // Clamps, Mins, Maxes
 
 template <typename T>
-T Min(T a, T b) { return (a<b)?a:b; }
+constexpr T Min(T a, T b) { return (a<b)?a:b; }
 template <typename T>
-T Max(T a, T b) { return (a>b)?a:b;}
+constexpr T Max(T a, T b) { return (a>b)?a:b;}
 template <typename T>
-T ClampTop(T a, T x) { return Min<T>(a, x); }
+constexpr T ClampTop(T a, T x) { return Min<T>(a, x); } // x top limit
 template <typename T>
-T ClampBot(T x, T a) { return Max<T>(x, a); }
+constexpr T ClampBot(T x, T a) { return Max<T>(x, a); } // x bottom limit
 
 /////////////////
 // Memory Operations
 
-internal inline void 
+internal void 
 MemoryCopy(void *dst, const void *src, std::size_t size);
-internal inline void 
+internal void 
 MemoryZero(void *dst, std::size_t size);
-internal inline B32
+internal B32
 MemoryCompare(const void* lhs, const void* rhs, std::size_t count);
 
 template <typename T>
-inline void MemoryZeroStruct(T& obj);
+void MemoryZeroStruct(T& obj);
 template <typename T, std::size_t N>
-inline void MemoryZeroArray(T (&arr)[N]);
+void MemoryZeroArray(T (&arr)[N]);
 
-internal inline B32 
+internal B32 
 MemoryMatch(const void* lhs, const void* rhs, std::size_t count);
 
-U64 DefaultAlign(U64 align);
+U64 
+DefaultAlign(U64 align);
+
+//////////////////
+// Singly-Linked List Operations
+
+template <typename T>
+internal void 
+SLLQueuePush(T*& first, T*& last, T*& node)
+{
+	if (first == nullptr)
+	{
+		first = node;
+	} 
+	else
+	{
+		last->next = node;
+	}
+
+	last = node;
+	node->next = nullptr;
+}
+
 #endif // BASE_CORE_H
