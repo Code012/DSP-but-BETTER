@@ -14,28 +14,28 @@ Date 26/01/2025
 #include "visitors.hpp"
 
 
-
+int ExpressionNode::nextId = 0;
 
 // Number Node
-NumberExpressionNode::NumberExpressionNode(Token tok, int Val, ExprKind Kind) : Tok(tok), Value(Val), Kind(Kind) {}
+NumberExpressionNode::NumberExpressionNode(Token tok, int Val, InfixKind Kind) : Tok(tok), Value(Val), Kind(Kind) {}
 
 std::string NumberExpressionNode::TokenLiteral() const { return Tok.Literal; }
 std::string NumberExpressionNode::String() const { return Tok.Literal; }
 
 
-ExprKind NumberExpressionNode::getKind() const { return Kind; }
+InfixKind NumberExpressionNode::getKind() const { return Kind; }
 
 void NumberExpressionNode::accept(ExprVisitor& visitor) const {visitor.visit(*this);}
 void NumberExpressionNode::accept(ExprMutableVisitor& visitor) {visitor.visit(*this);}
 
 
 // Variable Node
-VariableExpressionNode::VariableExpressionNode(const std::string &Name, Token &tok, ExprKind Kind) : Value(Name), Tok(tok), Kind(Kind)  {}
+VariableExpressionNode::VariableExpressionNode(const std::string &Name, Token &tok, InfixKind Kind) : Value(Name), Tok(tok), Kind(Kind)  {}
 
 std::string VariableExpressionNode::TokenLiteral() const { return Tok.Literal; };
 std::string VariableExpressionNode::String() const { return Value; };
 
-ExprKind VariableExpressionNode::getKind() const { return Kind; };
+InfixKind VariableExpressionNode::getKind() const { return Kind; };
 
 void VariableExpressionNode::accept(ExprVisitor& visitor) const {visitor.visit(*this);}
 void VariableExpressionNode::accept(ExprMutableVisitor& visitor) {visitor.visit(*this);}
@@ -43,11 +43,11 @@ void VariableExpressionNode::accept(ExprMutableVisitor& visitor) {visitor.visit(
 
 
 // UNARY/PREFIX Node
-PrefixExpressionNode:: PrefixExpressionNode(char Op, Token &tok, ExprKind Kind, std::unique_ptr<ExpressionNode> Right) 
+PrefixExpressionNode:: PrefixExpressionNode(char Op, Token &tok, InfixKind Kind, std::unique_ptr<ExpressionNode> Right) 
         : Operator(Op), Tok(tok), Kind(Kind), Right(std::move(Right)) {}
 
 std::string PrefixExpressionNode :: TokenLiteral() const { return Tok.Literal; };
-ExprKind PrefixExpressionNode :: getKind() const  { return Kind; };
+InfixKind PrefixExpressionNode :: getKind() const  { return Kind; };
 std::string PrefixExpressionNode :: String() const { 
     std::ostringstream oss;
 
@@ -67,11 +67,11 @@ void PrefixExpressionNode :: accept(ExprVisitor& visitor) const {visitor.visit(*
 void PrefixExpressionNode :: accept(ExprMutableVisitor& visitor) {visitor.visit(*this);}
 
 
-// Binary NODE
+// INFIX NODE
 
-std::string BinaryExpressionNode :: TokenLiteral() const { return Tok.Literal; };
-ExprKind  BinaryExpressionNode :: getKind() const { return Kind; };
-std::string BinaryExpressionNode :: String() const { 
+std::string InfixExpressionNode :: TokenLiteral() const { return Tok.Literal; };
+InfixKind  InfixExpressionNode :: getKind() const { return Kind; };
+std::string InfixExpressionNode :: String() const { 
     std::ostringstream oss;
 
     oss << "(";
@@ -86,21 +86,21 @@ std::string BinaryExpressionNode :: String() const {
     };
 
 
-BinaryExpressionNode :: BinaryExpressionNode(Token &tok, char Op, ExprKind Kind, std::unique_ptr<ExpressionNode> Left, std::unique_ptr<ExpressionNode> Right) 
+InfixExpressionNode :: InfixExpressionNode(Token &tok, char Op, InfixKind Kind, std::unique_ptr<ExpressionNode> Left, std::unique_ptr<ExpressionNode> Right) 
         : Tok(tok), Operator(Op), Kind(Kind), Left(std::move(Left)), Right(std::move(Right)) {}
 
-void BinaryExpressionNode :: accept(ExprVisitor& visitor) const  {visitor.visit(*this);}
-void BinaryExpressionNode :: accept(ExprMutableVisitor& visitor)  {visitor.visit(*this);}
+void InfixExpressionNode :: accept(ExprVisitor& visitor) const  {visitor.visit(*this);}
+void InfixExpressionNode :: accept(ExprMutableVisitor& visitor)  {visitor.visit(*this);}
 
 
 
 
 // Nary expression node
-NaryExpressionNode :: NaryExpressionNode(Token &tok, char Op, ExprKind Kind, std::vector<std::unique_ptr<ExpressionNode>> ops)
+NaryExpressionNode :: NaryExpressionNode(Token &tok, char Op, InfixKind Kind, std::vector<std::unique_ptr<ExpressionNode>> ops)
 : Tok(tok), Operator(Op), Kind(Kind), Operands(std::move(ops)) {}
 
 std::string NaryExpressionNode :: TokenLiteral() const { return Tok.Literal; }
-ExprKind NaryExpressionNode :: getKind() const { return Kind; }
+InfixKind NaryExpressionNode :: getKind() const { return Kind; }
 
 
 std::string NaryExpressionNode :: String() const {
