@@ -8,19 +8,21 @@ struct String8;
 /////////////////////////
 // C-String Measurement
 
-constexpr U64 cstring8_length(char const* c);
+constexpr U64 
+cstring8_length(char const* c);
 
 /////////////////////////
 // C-String Constructors
 
-inline String8 str8_cstring(char const* c_string);
+String8 str8_cstring(char const* c_string);
 
 /////////////////////////
 // String Matching Helpers
 
-constexpr B32 str8_match(String8 const& a, String8 const& b);
-constexpr B32 str8_match_cstr(char const* a_cstr, String8 const& b);
-
+constexpr B32 
+str8_match(String8 const& a, String8 const& b);
+constexpr B32 
+str8_match_cstr(char const* a_cstr, String8 const& b);
 
 /////////////////////////
 // String Types
@@ -32,27 +34,35 @@ struct String8
 
 	constexpr String8() = default;
 	
-	constexpr String8(String8 const&) = default;
-	constexpr String8(String8&&) = default;
-	constexpr String8& operator=(String8 const&) = default;
-	constexpr String8& operator=(String8&&) = default;
+	constexpr String8(String8 const&) 					     = default;
+	constexpr String8(String8&&) 						     = default;
+	constexpr String8& operator=(String8 const&) 	noexcept = default;
+	constexpr String8& operator=(String8&&) 	 	noexcept = default;
 	
-
 	~String8() = default;
 
-	// construction by string literal
+	// Constructors
 	template <U64 N>
-	constexpr String8(char const(&str)[N]) : value(str), length(N - 1) {}
-	// construction by pointer
-	constexpr String8(char const* v, U64 len) : value(v), length(len) {}
+	constexpr String8(char const(&str)[N]) : value(str), length(N - 1) {} // by string literal
+	constexpr String8(char const* v, U64 len);		// by pointer
 
-	constexpr const char& operator[](U64 i) const 		{ return value[i]; }
-	constexpr B32 operator==(String8 const& b) 			{ return str8_match(*this, b); }
-	constexpr B32 operator==(char const* b_cstr) 		{ return str8_match(str8_cstring(b_cstr), *this); }		
+	constexpr char operator[](U64 i) const noexcept;
 
-	constexpr U64 size() const 							{ return length; }
+	constexpr String8 substr(Rng1U64 range) const noexcept;
 
 };
+
+// String Comparison Operators (learnt better to put these outside class, so it doesnt force the class type on the left, also cna be found with adl)
+constexpr B32 operator==(String8 const& a, String8 const& b)   noexcept;
+constexpr B32 operator==(String8 const& a, char const* b_cstr) noexcept;		
+constexpr B32 operator==(char const* a_cstr, String8 const& b) noexcept;		
+constexpr B32 operator!=(String8 const& a, String8 const& b)   noexcept;
+constexpr B32 operator!=(String8 const& a, char const* b_cstr) noexcept;		
+constexpr B32 operator!=(char const* a_cstr, String8 const& b) noexcept;	
+
+// Stream Output
+std::ostream& operator<<(std::ostream& os, String8 const& str); // you're gone when i write my own logger
+
 
 struct Str8Builder
 {
@@ -131,6 +141,18 @@ Str8BuildF(BumpAllocator<SIZE>& arena, Str8Builder& builder, char const* format,
 	    builder.length += needed - 1;	// Overwrite null-terminator in next go
 	    builder.buffer[builder.length] = '\0';
     }
+}
+
+
+///////////////////////////////
+// Arena Pushing Helpers
+
+template<size_t SIZE>
+String8 PushStringCopy(BumpAllocator<SIZE>& arena, String8 const& src)
+{
+	char* dst = arena.PushArrayNoZero<char>(src.length);
+	MemoryCopy(dst, src.value, src.length);
+	return String8{dst, src.length};
 }
 
 #endif // BASE_STRING_HPP
