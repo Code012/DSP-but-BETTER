@@ -1,0 +1,22 @@
+8/10/25
+https://handmade.network/forums/t/6880-advice_on_manual_memory_management_scheme 
+
+In the forum reply, Ryan suggests:
+- (1) uniform lifetimes     + non-uniform sizes -> use Memory Block Linked List or Virtual Memory Linear Allocator
+- (2) uniform lifetimes     + uniform sizes     -> Use Memory Pool + Free List
+- (3) non-uniform lifetimes + uniform sizes     -> use Memory Pool + Free List
+- (4) non-unirorm lifetimes + non-uniform sizes -> use Variable-Sized Memory Pool
+
+When you can guarantee uniform sizes but not guarantee lifetimes go with Memory Pool.
+
+My case:
+- Lexer produces list of tokens     -> uniform lifetime     + uniform size 
+- Parser produces mutable ast       -> non-uniform lifetime + uniform size 
+- Simplifier produces immutable ast -> uniform-lifetime     + uniform size 
+
+For the lexer, a simple virtual memory linear allocator will do, since I will store a linked list of tokens on there.
+For the parser and simplifier, a memory pool will be perfect, especially for recycling "free'd" nodes.
+
+As for sizes, I will put a cap of 200 characters because high school algebra should at most take about 60 characters and with my reduced subset should be smaller. So 200*sizeof(TokenNode) for arena, and for free list 300*sizeof(ASTNode) because ast nodes may not map 1-1 with tokens and characters.
+
+lexer will return TokenList object, that points to TokenNodes allocated on arena.
