@@ -2,16 +2,20 @@
 // Headers
 #include "simpletest.h"
 #include "base_inc.hpp"
+#include "parse/parse_inc.hpp"
 
 //////////////////////
 // Implementations
 #include "simpletest.cpp"
 #include "base_inc.cpp"
+#include "parse/parse_inc.cpp"
+
 
 
 char const *groups[] = {
     "Bump",
     "String",
+    "Lexer",
 };
 
 // Test basic arena construction and destruction
@@ -556,26 +560,6 @@ DEFINE_TEST_G(Str8String, String)
     // create another string view. Nothing harmful.
 }
 
-// // Test 
-// DEFINE_TEST_G(String8OperatorIndex, String)
-// {
-//     String8 s = str8_lit("Hello");
-
-//     // Normal indexing
-//     TEST_EQ(s[0], 'H');
-//     TEST_EQ(s[1], 'e');
-//     TEST_EQ(s[4], 'o');
-
-//     // Out-of-bounds indexing (should return '\0')
-//     TEST_EQ(s[5], '\0');  // right at length
-//     TEST_EQ(s[10], '\0'); // well past length
-//     TEST_EQ(s[100], '\0');
-//     TEST_EQ(s[-1], '\0');
-
-//     // Edge case: empty string
-//     String8 empty { nullptr, 0 };
-//     TEST_EQ(empty[0], '\0');
-// }
 
 
 // DEFINE_TEST_G(String8Substr, String)
@@ -618,6 +602,56 @@ DEFINE_TEST_G(Str8String, String)
 //     sub6.print();
 //     TEST_EQ(sub6.value[0], '\0');
 // }
+
+//
+DEFINE_TEST_G(TestNextToken, Lexer) {
+    String8 input = "(501341324 + 10234) * 32 + x / area$";
+
+    struct TestToken 
+    {
+        TokenType expectedType;
+        String8 expectedLiteral;
+    };
+
+    std::vector<TestToken> testTable;
+
+    testTable.push_back(TestToken{TokenType::LPAREN, "("});
+    testTable.push_back(TestToken{TokenType::NUM, "501341324"});
+    testTable.push_back(TestToken{TokenType::PLUS, "+"});
+    testTable.push_back(TestToken{TokenType::NUM, "10234"});
+    testTable.push_back(TestToken{TokenType::RPAREN, ")"});
+    testTable.push_back(TestToken{TokenType::MULT, "*"});
+    testTable.push_back(TestToken{TokenType::NUM, "32"});
+    testTable.push_back(TestToken{TokenType::PLUS, "+"});
+    testTable.push_back(TestToken{TokenType::SYMBOL, "x"});
+    testTable.push_back(TestToken{TokenType::DIV, "/"});
+    testTable.push_back(TestToken{TokenType::SYMBOL, "area"});
+    testTable.push_back(TestToken{TokenType::EOL, "$"});
+
+
+    Context context;
+
+    Lexer lexer = Lexer(input, context);
+    TokenList token_list = lexer.Lex();
+    TokenNode* current_token_node = token_list.first;
+    Token tok{};
+
+    for (int i=0; i < testTable.size(); i++)
+    {
+        tok = current_token_node->token;
+
+        TestToken test_tok = testTable[i];
+
+        TEST_EQ(tok.type, test_tok.expectedType);
+        TEST_EQ(tok.literal, test_tok.expectedLiteral);
+        std::cout << "\nwant: " << test_tok.expectedLiteral  << ", got: " << tok.literal;
+
+        current_token_node = current_token_node->next;
+    }
+
+}   
+
+
 int main(void) 
 {
     bool pass = true;
