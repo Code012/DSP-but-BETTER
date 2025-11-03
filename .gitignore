@@ -5,5 +5,11 @@ misc/*
 .vscode
 .vs
 
+*.txt
+
+.cache
+*.cland
+*.json
+
 
 
