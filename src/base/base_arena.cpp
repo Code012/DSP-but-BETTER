@@ -48,32 +48,30 @@ ArenaRelease(Arena *arena)
 internal void *
 ArenaPush(Arena *arena, U64 size, U64 align, B32 zero)
 {
-	U64 pos = arena->pos;
-	U64 pos_rounded_up = pos + align-1;
-	pos_rounded_up -= pos_rounded_up%align;
-	U64 size_to_alloc = pos_rounded_up - pos;
-	
 	void *result = nullptr;
-	if (size_to_alloc != 0)
+	if (arena->pos + size <= arena->size)
 	{
-		if (arena->pos + size <= arena->size)
-		{
-			U8 *base = (U8 *)arena;
-			arena->pos += size_to_alloc;
-			if (arena->commit_pos < arena->pos)
-			{
-				U64 size_to_commit = arena->pos - arena->commit_pos;
-				size_to_commit += ARENA_COMMIT_GRANULARITY - 1;
-				size_to_commit -= size_to_commit%ARENA_COMMIT_GRANULARITY;
-				ArenaImpl_Commit(base + arena->commit_pos, size_to_commit);
-				arena->commit_pos += size_to_commit;
-			}
+		U8 *base = (U8 *)arena;
 
-		}
-		else
+		U64 post_align_pos = (arena->pos + (align-1));
+		post_align_pos -= post_align_pos%align;
+
+		U64 align = post_align_pos - arena->pos;
+		result = base + arena->pos + align;
+		arena->pos += size + align;
+		if (arena->commit_pos < arena->pos)
 		{
-		// NOTE(): fallback strategy, right not, just fail.
+			U64 size_to_commit = arena->pos - arena->commit_pos;
+			size_to_commit += ARENA_COMMIT_GRANULARITY - 1;
+			size_to_commit -= size_to_commit%ARENA_COMMIT_GRANULARITY;
+			ArenaImpl_Commit(base + arena->commit_pos, size_to_commit);
+			arena->commit_pos += size_to_commit;
 		}
+	}
+
+	if (zero)
+	{
+		MemoryZero(result, size);
 	}
 
 	return result;
