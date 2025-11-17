@@ -1,1 +1,135 @@
+#pragma once
+// TODO(me): Get rid of this once finished development
+#include "unity.h" // so clangd knows where symbols are for unity build 
 
+#if !defined(ArenaImpl_Reserve)
+#error ArenaImpl_Reserve must be defined to use base memory;
+#endif
+#if !defined(ArenaImpl_Release)
+#error ArenaImpl_Release must be defined to use base memory;
+#endif
+#if !defined(ArenaImpl_Commit)
+# error ArenaImpl_Commit must be defined to use base memory;
+#endif
+#if !defined(ArenaImpl_Decommit)
+# error ArenaImpl_Decommit must be defined to use base memory;
+#endif
+
+
+
+
+////////////////////////////////
+// Arena Functions
+
+// arena creation/destruction
+internal Arena *
+ArenaAlloc(U64 size)
+{
+	U64 reserve_size_roundup_granularity = MB(64);
+	size += reserve_size_roundup_granularity-1;
+	size -= size%reserve_size_roundup_granularity;
+	void *block = ArenaImpl_Reserve(size);
+	U64 initial_commit_size = ARENA_COMMIT_GRANULARITY;
+	Assert(initial_commit_size >= ARENA_HEADER_SIZE);
+	ArenaImpl_Commit(block, initial_commit_size);
+	Arena *arena = (Arena *)block;
+	arena->pos = ARENA_HEADER_SIZE;
+	arena->commit_pos = initial_commit_size;
+	arena->size = size;
+}
+
+internal void 
+ArenaRelease(Arena *arena)
+{
+	ArenaImpl_Release(arena, arena->size);
+}
+
+// arena push/pop/pos core functions
+internal void *
+ArenaPush(Arena *arena, U64 size, U64 align, B32 zero)
+{
+	U64 pos = arena->pos;
+	U64 pos_rounded_up = pos + align-1;
+	pos_rounded_up -= pos_rounded_up%align;
+	U64 size_to_alloc = pos_rounded_up - pos;
+	
+	void *result = nullptr;
+	if (size_to_alloc != 0)
+	{
+		if (arena->pos + size <= arena->size)
+		{
+			U8 *base = (U8 *)arena;
+			arena->pos += size_to_alloc;
+			if (arena->commit_pos < arena->pos)
+			{
+				U64 size_to_commit = arena->pos - arena->commit_pos;
+				size_to_commit += ARENA_COMMIT_GRANULARITY - 1;
+				size_to_commit -= size_to_commit%ARENA_COMMIT_GRANULARITY;
+				ArenaImpl_Commit(base + arena->commit_pos, size_to_commit);
+				arena->commit_pos += size_to_commit;
+			}
+
+		}
+		else
+		{
+		// NOTE(): fallback strategy, right not, just fail.
+		}
+	}
+
+	return result;
+}
+
+internal U64 
+ArenaPos(Arena *arena)
+{
+	return arena->pos;
+}
+
+internal void 
+ArenaPopTo(Arena *arena, U64 pos)
+{
+	U64 min_pos = ARENA_HEADER_SIZE;
+	U64 new_pos = ClampBot(min_pos, pos);
+	arena->pos = new_pos;
+
+	U64 pos_aligned_to_commit_chunks = arena->pos + ARENA_COMMIT_GRANULARITY-1;
+	pos_aligned_to_commit_chunks -= pos_aligned_to_commit_chunks%ARENA_COMMIT_GRANULARITY;
+	// if the gap is >= ARENA_DECOMMIT_THRESHOLD then actually decommit, otherwise reuse committed memory
+	if (pos_aligned_to_commit_chunks + ARENA_DECOMMIT_THRESHOLD <= arena->commit_pos)
+	{
+		U8 *base = (U8 *)arena;
+		U64 size_to_decommit = arena->commit_pos - pos_aligned_to_commit_chunks;
+		ArenaImpl_Decommit(base + pos_aligned_to_commit_chunks, size_to_decommit);
+		arena->commit_pos -= size_to_decommit;
+	}
+}
+
+// arena push/pop helpers
+internal void 
+ArenaClear(Arena *arena)
+{
+	ArenaPopTo(arena, ARENA_HEADER_SIZE);
+}
+internal void 
+ArenaPop(Arena *arena, U64 amt)
+{
+	U64 min_pos = ARENA_HEADER_SIZE;
+	U64 size_to_pop_clamped = ClampTop(amt, arena->pos);
+	U64 new_pos = arena->pos - size_to_pop_clamped;
+	U64 new_pos_clamped = ClampBot(min_pos, new_pos);
+	ArenaPopTo(arena, new_pos);
+}
+
+// temporary arena scopes
+internal Temp 
+TempBegin(Arena *arena)
+{
+	U64 pos = ArenaPos(arena);
+	Temp temp = {arena, pos};
+	return temp;
+}
+internal void 
+TempEnd(Temp temp)
+{
+	ArenaPopTo(temp.arena, temp.pos);
+}
