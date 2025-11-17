@@ -1,3 +1,6 @@
+#pragma once
+// TODO(me): Get rid of this once finished development
+#include "unity.h" // so clangd knows where symbols are for unity build 
 
 /////////////////
 // Memory Operations
@@ -22,3 +25,4 @@ MemoryMatch(const void* lhs, const void* rhs, std::size_t count)                
 
 internal U64 
 DefaultAlign(U64 align)                                                             { return Max<U64>(8, align); }
+

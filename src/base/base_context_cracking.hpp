@@ -1,5 +1,7 @@
 /* date = November 2nd 2025*/
 
+// TODO: Simplify to what you need
+
 #ifndef BASE_CONTEXT_CRACKING_H
 #define BASE_CONTEXT_CRACKING_H
 

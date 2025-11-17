@@ -1,10 +1,8 @@
-
+#pragma once
+// TODO(me): Get rid of this once finished development
+#include "unity.h" // so clangd knows where symbols are for unity build 
 ///////////////////////////////
 // Range Types
-
-// 1-range
-
-U64& Rng1U64::operator[](U64 i)                                 { return i == 0 ? min : max; }
 
 
 //////////////////////////////
