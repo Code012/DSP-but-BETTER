@@ -28,6 +28,7 @@ ArenaAlloc(U64 size)
 	U64 reserve_size_roundup_granularity = MB(64);
 	size += reserve_size_roundup_granularity-1;
 	size -= size%reserve_size_roundup_granularity;
+	
 	void *block = ArenaImpl_Reserve(size);
 	U64 initial_commit_size = ARENA_COMMIT_GRANULARITY;
 	Assert(initial_commit_size >= ARENA_HEADER_SIZE);
@@ -56,9 +57,9 @@ ArenaPush(Arena *arena, U64 size, U64 align, B32 zero)
 		U64 post_align_pos = (arena->pos + (align-1));
 		post_align_pos -= post_align_pos%align;
 
-		U64 align = post_align_pos - arena->pos;
-		result = base + arena->pos + align;
-		arena->pos += size + align;
+		U64 align_adjust = post_align_pos - arena->pos;
+		result = base + arena->pos + align_adjust;
+		arena->pos += size + align_adjust;
 		if (arena->commit_pos < arena->pos)
 		{
 			U64 size_to_commit = arena->pos - arena->commit_pos;

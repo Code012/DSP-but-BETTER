@@ -14,7 +14,7 @@
 // Constants
 
 #if !defined(ARENA_COMMIT_GRANULARITY)
-# define ARENA_COMMIT_GRANULARITY KB(4)
+# define ARENA_COMMIT_GRANULARITY KB(4)		// commits must be a multiple of 4KiB
 #endif
 
 #if !defined(ARENA_DECOMMIT_THRESHOLD)
@@ -40,7 +40,7 @@ struct Temp
 {
 	Arena *arena;
 	U64 pos;
-}
+};
 
 ////////////////////////////////
 // Arena Functions
