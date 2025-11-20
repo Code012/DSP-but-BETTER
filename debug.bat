@@ -10,8 +10,8 @@ if "%1"=="?" goto :help
 :: Build targets
 :: TODO: change targets for main to be .sln files when you get to it
 if "%test%"=="1" (
-    set target=misc/test.sln
-    set file=../src/tester/tester_main.cpp
+    set target=build/test.exe
+    set file=/src/tester/tester_main.cpp
     echo Debugging tests
 ) else if "%main%"=="1" (
     set target=build/main.exe
@@ -22,7 +22,7 @@ if "%test%"=="1" (
 )
 
 
-start devenv %target% %file%
+start raddbg %target% --user:dsp-user.txt --auto_step
 
 
 

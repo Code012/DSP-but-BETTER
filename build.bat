@@ -11,7 +11,7 @@ if "%1"=="?" goto :help
 if not exist build mkdir build
 
 :: Compiler flags with include paths
-set cl_common=/I../src /I../src/base /nologo /FC /Zi /EHsc
+set cl_common=/I../src /nologo /FC /Zi /EHsc /std:c++20
 set compile=call cl %cl_common%
 
 :: Build targets
@@ -26,7 +26,7 @@ if "%test%"=="1" (
 ) else (
     set target=../src/entry/main.cpp
     set output=main.exe
-    echo Building main program (default)
+    echo Building main program [default]
 )
 pushd build
 echo Compiling: %target%
