@@ -1,7 +1,3 @@
-#pragma once
-// TODO(me): Get rid of this once finished development
-#include "unity.h" // so clangd knows where symbols are for unity build 
-
 #if !defined(ArenaImpl_Reserve)
 #error ArenaImpl_Reserve must be defined to use base memory;
 #endif
@@ -25,7 +21,7 @@
 internal Arena *
 ArenaAlloc(U64 size)
 {
-	U64 reserve_size_roundup_granularity = MB(64);
+	U64 reserve_size_roundup_granularity = MiB(64);
 	size += reserve_size_roundup_granularity-1;
 	size -= size%reserve_size_roundup_granularity;
 	
@@ -37,12 +33,15 @@ ArenaAlloc(U64 size)
 	arena->pos = ARENA_HEADER_SIZE;
 	arena->commit_pos = initial_commit_size;
 	arena->size = size;
+
+	return arena;
 }
 
 internal void 
-ArenaRelease(Arena *arena)
+ArenaRelease(Arena **arena)
 {
-	ArenaImpl_Release(arena, arena->size);
+	ArenaImpl_Release(*arena, (*arena)->size);
+	*arena = nullptr;
 }
 
 // arena push/pop/pos core functions
@@ -120,15 +119,59 @@ ArenaPop(Arena *arena, U64 amt)
 }
 
 // temporary arena scopes
-internal Temp 
-TempBegin(Arena *arena)
+
+//~ Scratch Arena Pool 
+perthread_static Arena *ScratchArenaPool[2] = zero_struct;
+
+internal ArenaTemp 
+ArenaTempBegin(Arena *arena)
 {
 	U64 pos = ArenaPos(arena);
-	Temp temp = {arena, pos};
+	ArenaTemp temp = {arena, pos};
 	return temp;
 }
+
 internal void 
-TempEnd(Temp temp)
+ArenaTempEnd(ArenaTemp temp)
 {
 	ArenaPopTo(temp.arena, temp.pos);
+}
+
+
+internal ArenaTemp 
+ArenaGetScratch(Arena **excluded_arenas, U32 excluded_count)
+{
+	// init on first time
+	if (ScratchArenaPool[0] == nullptr)
+	{
+		for (U64 i = 0; i < ArrayCount(ScratchArenaPool); i += 1)
+		{
+			ScratchArenaPool[i] = ArenaAlloc();
+		}
+	}
+
+	// get non-conflicting arena
+	ArenaTemp result = zero_struct;
+
+	for (U64 i = 0; i < ArrayCount(ScratchArenaPool); i += 1)
+	{
+		Arena *candidate = ScratchArenaPool[i];
+		B32 is_valid_candidate = 1;
+		for(U32 j = 0; j < excluded_count; j += 1)
+		{
+			if (candidate == excluded_arenas[i])
+			{
+				is_valid_candidate = 0;
+				break;
+			}
+		}
+
+		if (is_valid_candidate)
+		{
+			result = ArenaTempBegin(candidate);
+			break;
+		}
+	}
+
+	return result;
 }
