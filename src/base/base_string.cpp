@@ -1,0 +1,216 @@
+/* date = November 18th 2025 9:20 pm */
+
+#define STB_SPRINTF_IMPLEMENTATION
+#include "third_party/stb/stb_sprintf.h"
+
+
+///////////////////////////////
+//~ Character Classification & Conversion Functions
+
+internal B32 
+CharIsApha(U8 c)
+{
+	return CharIsAlphaUpper(c) || CharIsAlphaLower(c);
+}
+
+internal B32 
+CharIsAlphaUpper(U8 c)
+{
+	return c >= 'A' && c <= 'Z';
+}
+
+internal B32
+CharIsAlphaLower(U8 c)
+{
+	return c >= 'a' && c <= 'z';
+}
+
+internal B32 
+CharIsDigit(U8 c)
+{
+	return c >= '0' && c <= '9';
+}
+
+internal B32 
+CharIsSpace(U8 c)
+{
+	return c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\f' || c == '\v';
+}
+
+internal B32 
+UpperFromChar(U8 c)
+{
+	return (c >= 'a' && c <= 'z') ? ('A' + (c - 'a')) : c;
+}
+internal B32 
+LowerFromChar(U8 c)
+{
+	return (c >= 'A' && c <= 'Z') ? ('a' + (c - 'A')) : c;
+}
+
+
+////////////////////////////////
+//~ C-String Measurement
+
+internal U64 
+CString8Length(U8 *cstr)
+{
+	U64 length = 0;
+	U8 *p = cstr;
+	if (cstr)
+	{
+		for (;*p != 0; p += 1);
+			length = (U64)(p-cstr);
+	}
+	return length;
+}
+
+////////////////////////////////
+//~ String Constructors
+
+internal String8 
+Str8(U8 *str, U64 size)
+{
+	String8 result = {str, size};
+	return result;
+}
+
+internal String8 
+Str8Range(U8 *first, U8* one_past_last)
+{
+	String8 result = {first, (U64)(one_past_last - first)};
+	return result;
+}
+
+internal String8 
+Str8Zero(void)
+{
+	String8 result = zero_struct;
+	return result;
+}
+
+internal String8 
+Str8CString(char *c)
+{
+	String8 result = {(U8 *)c, CString8Length((U8 *)c)};
+	return result;
+}
+
+internal String8 
+Str8CStringCapped(void *cstr, void *cap)
+{
+	char *ptr = (char *)cstr;
+	char *opl = (char *)cap;
+	for (;ptr < opl && *ptr != 0; ptr += 1);
+	U64 size = (U64)(ptr - (char *)cstr);
+	String8 result = Str8((U8*)cstr, size);
+	return result;
+}
+
+
+///////////////////////////////
+//~ String Matching
+
+
+internal B32 
+Str8Match(String8 a, String8 b, StringMatchFlags flags)
+{
+	B32 result = 0;
+	if (a.size == b.size && flags == StringMatchFlags::None)
+	{
+		result = MemoryMatch(a.str, b.str, b.size);
+	}
+	else if (a.size == b.size || HasFlag<StringMatchFlags>(flags, StringMatchFlags::StartsWith))
+	{
+		B32 case_insensitive = HasFlag<StringMatchFlags>(flags, StringMatchFlags::CaseInsensitive);
+		U64 size 			 = Min(a.size, b.size);
+		result = 1;
+		for (U64 i = 0; i < size; i += 1)
+		{
+			U8 ai = a.str[i];
+			U8 bi = b.str[i];
+			if (case_insensitive)
+			{
+				ai = UpperFromChar(ai);
+				bi = UpperFromChar(bi);
+			}
+			if (ai != bi)
+			{
+				result = 0;
+				break;
+			}
+		}
+	}
+	return result;
+}
+
+//////////////////////////////
+//~ String Slicing
+
+
+internal String8 
+Str8Substr(String8 str, Rng1U64 range)
+{
+	range.min = ClampTop(range.min, str.size);
+	range.max = ClampTop(range.max, str.size);
+	str.str += range.min;
+	str.size = Dim1U64(range);
+	return str;
+}
+
+////////////////////////////////
+//~ String Formatting & Copying
+
+////////////////////////////////
+//~ String List Construction Functions
+
+////////////////////////////////
+//~ String Splitting & Joining Types
+
+
+// internal String8List Str8Split(Arena *arena, String8 string, U8 *split_chars, U64 split_char_count, StringSplitFlags flags, )
+
+internal String8
+Str8ListJoin(Arena *arena, String8List *list, StringJoin *optional_params)
+{
+	// setup join params
+	StringJoin join = zero_struct;
+	if (optional_params != nullptr)
+	{
+		MemoryCopy(&join, optional_params, sizeof(join));
+	}
+	Assert(optional_params == 0); // checking if nullptr check catches 0 as well, if it does then get rid of this
+
+	// calculate size & allocate
+	U64 sep_count = 0;
+	if (list->node_count > 1)
+	{
+		sep_count = list->node_count - 1;
+	}
+	// fill, pre
+	String8 result = zero_struct;
+	result.size = join.pre.size + join.post.size + sep_count*join.sep.size + list->total_size;
+	result.str = PushArrayNoZero(arena, U8, result.size+1);
+
+	// fill, sep
+	U8 *ptr = result.str;
+	MemoryCopy(ptr, join.pre.str, join.pre.size);
+	ptr += join.pre.size;
+	for (String8Node *node = list->first;
+		node != nullptr;
+		node = node->next)
+	{
+		MemoryCopy(ptr, node->string.str, node->string.size);
+		ptr += node->string.size;
+		if (node->next != nullptr)
+		{
+			MemoryCopy(ptr, join.sep.str, join.sep.size);
+			ptr += join.sep.size;
+		}
+	}
+	// fill, post
+	MemoryCopy(ptr, join.post.str, join.post.size);
+	ptr += join.post.size;
+	*ptr = 0;	// null-terminate
+	return result;
+}
