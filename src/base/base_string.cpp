@@ -1,14 +1,13 @@
 /* date = November 18th 2025 9:20 pm */
 
-#define STB_SPRINTF_IMPLEMENTATION
-#include "third_party/stb/stb_sprintf.h"
+
 
 
 ///////////////////////////////
 //~ Character Classification & Conversion Functions
 
 internal B32 
-CharIsApha(U8 c)
+CharIsAlpha(U8 c)
 {
 	return CharIsAlphaUpper(c) || CharIsAlphaLower(c);
 }

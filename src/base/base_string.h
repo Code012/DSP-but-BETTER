@@ -3,8 +3,6 @@
 #ifndef BASE_STRING_HPP
 #define BASE_STRING_HPP
 
-#define STB_SPRINTF_DECORATE(name) ts_stbsp_##name
-#include "third_party/stb/stb_sprintf.h"
 
 // TODO: (me): Implement Unicode Conversions (when you need them)
 
@@ -70,7 +68,7 @@ struct StringJoin
 ///////////////////////////////
 //~ Character Classification & Conversion Functions
 // TODO: (sb): implement as needed
-internal B32 CharIsApha(U8 c);
+internal B32 CharIsAlpha(U8 c);
 internal B32 CharIsAlphaUpper(U8 c);
 internal B32 CharIsAlphaLower(U8 c);
 internal B32 CharIsDigit(U8 c);
@@ -87,12 +85,12 @@ internal U64 CString8Length(U8 *cstr);
 ////////////////////////////////
 //~ String Constructors
 
-#define Str8Lit(S) str8((U8*)(S), sizeof(S) - 1)
+#define Str8Lit(S) Str8((U8*)(S), sizeof(S) - 1)
 #define Str8Varg(S) (int)((S).size), ((S).str)     // for variadic functions where the format specifier is "%.*s" meaning an int value (width) is provided before the char string.
 
-#define Str8Array(S,C) str8((U8*)(S), sizeof(*(S)*(C)))
-#define Str8ArrayFixed(S,C) str8((U8*)(S), sizeof(S))
-#define Str8Struct(S) str8((U8*)(S), sizeof(*(S)))   // struct view
+#define Str8Array(S,C) Str8((U8*)(S), sizeof(*(S)*(C)))
+#define Str8ArrayFixed(S,C) Str8((U8*)(S), sizeof(S))
+#define Str8Struct(S) Str8((U8*)(S), sizeof(*(S)))   // struct view
 
 internal String8 Str8(U8 *str, U64 size);
 internal String8 Str8Range(U8 *first, U8* one_past_last);   // memory view

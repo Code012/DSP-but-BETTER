@@ -2,15 +2,26 @@
 #define BASE_CORE_H
 
 
-
 ///////////////////
 // Foreign Includes
 
-#include <cstdint>
-#include <cstring>
-#include <cstddef>
-#include <iostream>
-#include <limits>
+#include <stdio.h>
+#include <stdarg.h>
+#include <math.h>
+#include <string.h>
+#include <stdint.h>
+// #include <cstdint>
+// #include <cstring>
+// #include <cstddef>
+// #include <iostream>
+// #include <limits>
+
+////////////////////////////////
+// Third Party Includes
+	
+#define STB_SPRINTF_DECORATE(name) sb_stbsp_##name
+#define STB_SPRINTF_STATIC
+#include "third_party/stb/stb_sprintf.h"
 
 //////////////////
 // Codebase Keywords
@@ -18,6 +29,20 @@
 #define global static
 #define local_persist static
 #define internal static
+
+#if COMPILER_MSVC || (COMPILER_CLANG && OS_WINDOWS)
+#pragma section(".rdata$", read)
+# define read_only __declspec(allocate(".rdata$"))
+#elif (COMPILER_CLANG && OS_LINUX)
+# define read_only __attribute__((section(".rodata")))
+#else
+// NOTE(rjf): I don't know of a useful way to do this in GCC land.
+// __attribute__((section(".rodata"))) looked promising, but it introduces a
+// strange warning about malformed section attributes, and it doesn't look
+// like writing to that section reliably produces access violations, strangely
+// enough. (It does on Clang)
+# define read_only
+#endif
 
 #if COMPILER_MSVC
 # define perthread_static __declspec(thread)
