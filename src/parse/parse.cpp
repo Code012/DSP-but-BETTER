@@ -41,15 +41,15 @@ MsgListPush(Arena* arena, MsgList* msgs, Node* node, MsgKind kind, String8 strin
 ////////////////////////////////
 //- sb: Token Type Functions
 
-internal Token* 
-TokenPush(Arena* arena, TokenKind kind, Rng1U64 rng)
-{
-	Token* t = PushArray(arena, Token, 1);
-	t->kind = kind;
-	t->range = rng;
+// internal Token* 
+// TokenPush(Arena* arena, TokenKind kind, Rng1U64 rng)
+// {
+// 	Token* t = PushArray(arena, Token, 1);
+// 	t->kind = kind;
+// 	t->range = rng;
 
-	return t;
-}
+// 	return t;
+// }
 
 ////////////////////////////////
 //- sb: Node Type Functions
@@ -150,6 +150,7 @@ internal TokeniseResult TokeniseFromText(Arena* arena, String8 string)
 		case ')': kind = TokenKind::CloseParen; cursor++; break;
 		default:
 
+		// multi-character tokens
 			// numerics
 			if (CharIsDigit(*cursor))
 			{
@@ -186,14 +187,13 @@ internal TokeniseResult TokeniseFromText(Arena* arena, String8 string)
 
 		token_opl = cursor;
 
-		// push token to token array
+		// append token to token array
 		if (kind != TokenKind::Nil && token_opl > token_start)
 		{
 			U64 min = static_cast<U64>(token_start - byte_first); // ptrdiff_t -> U64 (signed to unsigned)
 			U64 max = static_cast<U64>(token_opl - byte_first);
 			Rng1U64 range = {min, max};
-			Token* t = TokenPush(arena, kind, range);
-			token_array[token_array.count++] = *t;
+			token_array[token_array.count++] = Token{range, kind};
 		}
 	}
 
