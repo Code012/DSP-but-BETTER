@@ -2,8 +2,17 @@
 
 ////////////////////////////////
 // Based on Ryan Fleury's Metadesk patterns
+// Following NeGate's advice for a lex-ahead ring buffer
+// - We lex tokens in batches (64 at a time) into a fixed-size buffer
+// - N-reads N-writes as opposed to 1-read 1-write. Lexer writes 64 tokens, parser reads 64 tokens
+// - Each buffer slot is reused repeatedly, so writes and subsequent reads
+// happen on the same memory locations, keeping data (more likely) hot in L1 cache 
+// - By limiting the working set to a small buffer, we reduce cache misses,
+// TLB misses, and memory traffic compared to pre-tokenising the entire file
+// - Memory usage scaled with parse depth, not file size, making this
+// approach cache-friendly for large files with typical nesting.
 
-// Note(sb): For real world input where there can be thousands of tokens, use a chunked list (dynamic list) and then flatten into array at the end
+// ^ TODO: do a benchmark comparing this approach with pre-lexing for large inputs (small inputs doesnt matter if we do either way).
 
 // TODO: 
 // 1. Attach source ranges to AST nodes for GUI highlighting later.
@@ -51,20 +60,21 @@ enum class TokenKind : U32
 {
 	// sb: base kind info
 	Nil           = 0,
-    Plus      	  = (1u << 0),
-    Minus     	  = (1u << 1),
-    Star	  	  = (1u << 2),
-    Slash	      = (1u << 3),
-    UnaryMinus	  = (1u << 4),
-    ImplicitMult  = (1u << 5),
-    Numeric  	  = (1u << 6),
-    Variable  	  = (1u << 7),
-    OpenParen	  = (1u << 8),
-    CloseParen    = (1u << 9),
-    EndOfInput    = (1u << 11),
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    ImplicitMult,
+    Numeric,
+    Variable,
+    OpenParen,
+    CloseParen,
 
+    EndOfInput,
     // sb: error info
-    BadCharacter  = (1u << 10),
+    BadCharacter,
+
+    MAX,
 };
 
 // TODO: is there a need to classify token groups? Perhaps based on their associativity?
@@ -85,6 +95,13 @@ struct TokenArray
 	const Token& operator[](U64 i) const;
 };
 
+struct TokenRingBuffer
+{
+	TokenArray tokens;
+	U64 head;
+	U64 tail;
+};
+
 /////////////////////////////////
 //- Operator Types
 
@@ -103,6 +120,7 @@ enum class UnOpKind : U32
 {
 	Nil=0,
 	Negate,
+	Positive,
 };
 
 /////////////////////////////////
@@ -114,7 +132,7 @@ enum class NodeKind : U32
 	Number,			// Leaf: numeric literal
 	Variable,		// Leaf: identifier
 	BinaryOp,		// Internal: +, -, *, /, FRACTION, ^
-	UnaryOp,		// Internal: - 
+	UnaryOp,		// Internal: -{expression}, +{expression}
 	FunctionCall,	// Internal: sin(x), sqrt(x)
 	ErrorMarker,	// not sure if i need this, but experimenting
 	COUNT,
@@ -130,6 +148,9 @@ struct Node
 	Node* bin_right;
 	Node* unary_child;
 	Node* func_arguments;
+
+	// sb: free list link
+	Node* next;
 
 	// sb: payload
 	union
@@ -150,17 +171,64 @@ struct Node
 
 };
 
-////////////////////////////////
-//- sb: Text -> Tokens Types
-
-struct TokeniseResult
+struct NodePool
 {
-	TokenArray tokens;
+	NONCOPYABLE_NONMOVABLE(NodePool)
+	NodePool();
+
+	Arena* arena;
+	Node* first_free_node;
+};
+
+
+/////////////////////////////////
+//- Parser Types
+
+enum class Precedence : U32
+{
+	MIN,
+
+	TERM,
+	ADDITIVE,
+	MULTIPLICATIVE,
+	IMPLICITMULT,
+	UNARY,
+	EXPONENTIAL,
+
+	MAX,
+};
+
+struct Lexer
+{
+	DEFAULT_CTOR_DTOR(Lexer)
+	Lexer(String8 src);
+
+	String8 src;
+	U8* cursor;
+};
+
+struct Parser
+{
+	DEFAULT_CTOR_DTOR(Parser)
+	NONCOPYABLE_NONMOVABLE(Parser)
+	Parser(Arena* arena, String8 src);
+
+	// memory
+	NodePool node_pool;	
+
+	Lexer lexer;
+
+	// tokens
+	TokenRingBuffer tokens_rb;
+	Token current_token;
+	Token peek_token;
+
+	// errors
 	MsgList msgs;
 };
 
 ////////////////////////////////
-//- sb: Tokens -> Tree Types
+//- sb: Text -> Tree Types
 
 struct ParseResult
 {
@@ -185,11 +253,6 @@ global read_only Node nil_node =
 internal void MsgListPush(Arena* arena, MsgList* msgs, Node* node, MsgKind kind, String8 string);
 
 ////////////////////////////////
-//- sb: Token Type Functions
-
-internal Token* TokenPush(Arena* arena, TokenKind kind, Rng1U64 rng);
-
-////////////////////////////////
 //- sb: Node Type Functions
 
 // sb: nil
@@ -199,17 +262,37 @@ internal B32 NodeIsNil(Node* node);
 // sb: tree building
 internal Node* PushNode(Arena* arena, NodeKind kind, double value, String8 name, BinOpKind bk, UnOpKind uk, Rng1U64 src, Rng1U64 mod);
 
+// sb: node pool
+internal Node* NodeAlloc(NodePool* node_pool);
+internal void NodeRelease(NodePool* node_pool, Node* node);
 
 ////////////////////////////////
 //- sb: Text -> Tokens Functions
 
-internal TokeniseResult TokeniseFromText(Arena* arena, String8 string);
+internal Token NextTokenFromText(U8* byte_first, U8* one_past_last, U8*& cursor);
 
 ////////////////////////////////
-//- sb: Tokens -> Tree Functions
+//- sb: Text -> Tree Functions
 
-// internal ParseResult ParseFromTe
+internal ParseResult ParseFromText(Arena* arena, Parser* parser, String8 string);
 
+internal Node* ParseExpression(Parser* parser, Precedence precedence);
+
+internal Node* ParsePrefixExpression(Parser* parser);
+internal Node* ParseNumeric(Parser* parser);
+internal Node* ParseVariable(Parser* parser);
+internal Node* ParseUnary(Parser* parser);
+internal Node* ParseGroup(Parser* parser);
+// internal Node* ParseInfixExpression(Parser* parser, Node* left);
+
+/////////////////////////////////
+//- sb: Parser Helpers
+
+internal constexpr Precedence PrecedenceFromKind(TokenKind tk);
+internal constexpr Precedence PeekPrecedence(Parser* parser);
+internal void RefillRingBuffer(Parser* p);
+
+internal void NextToken(Parser* parser);
 
 ////////////////////
 } // namespace parse 

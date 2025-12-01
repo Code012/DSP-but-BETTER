@@ -6,6 +6,7 @@
 // Foreign Includes
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdarg.h>
 #include <math.h>
 #include <string.h>
@@ -64,7 +65,7 @@
 #endif
 
 ////////////////////////////////
-//~ Misc. Helper Macros
+//- Misc. Helper Macros
 
 #define Stringify_(S) #S 
 #define Stringify(S) Stringify_(S)
@@ -314,7 +315,20 @@ SLLQueuePush(T*& first, T*& last, T*& node)
 #endif
 
 ////////////////////////////////
-//~ Enum Bit Mask Implementations
+//- RAII
+
+#define NONCOPYABLE_NONMOVABLE(Type)\
+	Type(const Type&) = delete;\
+	Type& operator=(const Type&) = delete;\
+	Type(Type&&) = delete;\
+	Type& operator=(Type&&) = delete;
+
+#define DEFAULT_CTOR_DTOR(Type)\
+	Type() = default;\
+	~Type() = default;
+
+////////////////////////////////
+//- Enum Bit Mask Implementations
 
 #define IMPLEMENT_ENUM_CLASS_BITMASK(Type, Underlying_Type) \
 internal inline Type operator|(Type lhs, Type rhs) { \
@@ -332,9 +346,9 @@ internal inline Type operator^(Type lhs, Type rhs) { \
         static_cast<Underlying_Type>(lhs) ^ \
         static_cast<Underlying_Type>(rhs)); \
 } \
-internal inline Type operator~(Type val) { \
+internal inline Type operator-(Type val) { \
     return static_cast<Type>( \
-        ~static_cast<Underlying_Type>(val)); \
+        -static_cast<Underlying_Type>(val)); \
 } \
 internal inline Type& operator|=(Type& lhs, Type rhs) { \
     lhs = lhs | rhs; return lhs; \
@@ -344,7 +358,7 @@ internal inline Type& operator&=(Type& lhs, Type rhs) { \
 }
 
 ////////////////////////////////
-//~ Enum Class Bitmask Helpers 
+//- Enum Class Bitmask Helpers 
 
 template <typename T>
 internal B32 HasFlag(T value, T flag)		// underlying type will always be B32 for bitmasks
@@ -353,7 +367,7 @@ internal B32 HasFlag(T value, T flag)		// underlying type will always be B32 for
 }
 
 ////////////////////////////////
-//~ Constants
+//- Constants
 
 global U64 max_u64 = 0xffffffffffffffffull;
 
