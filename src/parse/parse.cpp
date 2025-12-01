@@ -255,7 +255,7 @@ global constexpr Precedence precedence_lookup[static_cast<U64>(TokenKind::MAX)] 
 internal ParseResult 
 ParseFromText(Arena* arena, Parser* parser, String8 string)
 {
-	ArenaTemp scratch = ScratchBegin(0, 0);
+	ArenaTemp scratch = ScratchBegin(arena, 1);
 	MsgList msgs = zero_struct;
 
 	Node* expr = ParseExpression(parser, Precedence::MIN);
