@@ -15,7 +15,7 @@
 #endif
 
 #if !defined(ARENA_DECOMMIT_THRESHOLD)
-# define ARENA_DECOMMIT_THRESHOLD MiB(64)
+# define ARENA_DECOMMIT_THRESHOLD KiB(500)		// reset to 64 MiB for serious projects
 #endif
 
 #define ARENA_HEADER_SIZE sizeof(Arena)
@@ -27,7 +27,7 @@ struct Arena
 {
 	U64 pos;
 	U64 commit_pos;
-	U64 size;
+	U64 size;		// reservation size
 };
 StaticAssert(sizeof(Arena) <= ARENA_HEADER_SIZE, arena_header_size_check);
 
