@@ -2,6 +2,9 @@
 //~ Build Options
 
 #define BUILD_TITLE "tester"
+// 
+#define DEBUG_PARSER_TREE_VIEW 0
+
 
 //////////////////////////////
 //~ Includes
@@ -144,14 +147,50 @@ DEFINE_TEST_G(TestNextToken, Lexer) {
 #endif  
 
 DEFINE_TEST_G(TestNextToken, Parser) {
+
+    
+
     ArenaTemp scratch = ScratchBegin(0,0);
-    parse::ParseResult result;
+    
+    parse::log_arena = ArenaAlloc();
 
+    String8 tests[] = { // gpt for test cases
+        Str8Lit("2+2"),
+        Str8Lit("-5"),
+        Str8Lit("+7"),
+        Str8Lit("-(3)"),
+        Str8Lit("+(4)"),
+        Str8Lit("1+-2"),
+        Str8Lit("1--2"),
+        Str8Lit("(-1)+(+2)"),
+        Str8Lit("3*(2+1)"),
+        Str8Lit("(3+2)*4"),
+        Str8Lit("10/(5-3)"),
+        Str8Lit("-(1+2)*3"),
+        Str8Lit("((1+2)*3)-4"),
+        Str8Lit("1+2*3-4/2"),
+        Str8Lit("((1))"),
+        Str8Lit("-((3+5)*2)"),
+        };
 
-    String8 src = Str8Lit("-2");
-    parse::Parser parser{scratch.arena, src}; 
+    for (U32 i = 0; i < ArrayCount(tests); i++)
+    {
+        String8 input = tests[i];
+        parse::Parser parser{scratch.arena, input}; 
+        parse::ParseResult result = parse::ParseFromText(scratch.arena, &parser, input); // pass arena for ring buffer scratch work
+        printf("\n==============================================================");
+        printf("\nInput: %.*s\n", Str8Varg(input));
 
-    result = parse::ParseFromText(scratch.arena, &parser, src); // pass arena for ring buffer scratch work
+        parse::DebugPrintParseResult(result, input);
+        
+        if (parser.msgs.count > 0)
+        {
+            for EachNode(msg, parse::Msg, parser.msgs.first)
+            {
+                PrintRed((U32)msg->string.size, msg->string.str);
+            }
+        }
+    }
 
     ScratchEnd(scratch);
 }
