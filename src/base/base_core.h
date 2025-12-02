@@ -184,6 +184,7 @@ enum class Compiler : U8
 # define StaticAssert(C, MESSAGE) static_assert(C, Stringify(MESSAGE))
 #else
 # define StaticAssert(C, ID)      global U8 Glue(ID, __LINE__)[(C)?1:-1]
+
 #endif
 //////////////////
 // Units
@@ -216,6 +217,25 @@ enum class Compiler : U8
 #else
 # error AlignOf not defined for this compiler.
 #endif
+
+////////////////////////////////
+//- For-Loop Construct Macros
+
+#define EachNode(it, T, first) (T* it = first; it != nullptr; it = it->next)
+
+////////////////////////////////
+//- ANSI Colour Codes
+
+#define COLOUR_RED    "\x1b[31m"
+#define COLOUR_YELLOW "\x1b[33m"
+#define COLOUR_RESET  "\x1b[0m"
+
+#define Colourise(colour, text) (colour text COLOUR_RESET)
+#define ColouriseRed(text) Colourise(COLOUR_RED, text)
+#define ColouriseYellow(text) Colourise(COLOUR_YELLOW, text)
+
+#define PrintRed(width, text) do { printf("%s%.*s%s\n", COLOUR_RED, width, text, COLOUR_RESET); } while(0)
+
 
 /////////////////
 // Memory Operations
