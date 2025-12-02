@@ -105,12 +105,17 @@ struct TokenRingBuffer
 /////////////////////////////////
 //- Operator Types
 
-enum class BinOpKind : U32
+enum class NaryOpKind: U32
 {
 	Nil=0,
 	Plus,
-	Minus, 
 	Multiply,
+};
+
+enum class BinOpKind : U32
+{
+	Nil=0,
+	Minus, 
 	Divide,
 	Fraction,
 	Power,
@@ -131,7 +136,8 @@ enum class NodeKind : U32
 	Nil,
 	Number,			// Leaf: numeric literal
 	Variable,		// Leaf: identifier
-	BinaryOp,		// Internal: +, -, *, /, FRACTION, ^
+	NaryOp,	        // Internal: *, +
+	BinaryOp,		// Internal: -, /, FRACTION, ^
 	UnaryOp,		// Internal: -{expression}, +{expression}
 	FunctionCall,	// Internal: sin(x), sqrt(x)
 	ErrorMarker,	// not sure if i need this, but experimenting
@@ -144,10 +150,12 @@ enum class NodeKind : U32
 struct Node
 {
 	// sb: tree links
+	Node* unary_child;
 	Node* bin_left;
 	Node* bin_right;
-	Node* unary_child;
-	Node* func_arguments;
+	Node* nary_first;
+	Node* nary_next;
+	// Node* func_arguments;
 
 	// sb: free list link
 	Node* next;
@@ -157,6 +165,7 @@ struct Node
 	{
 		double number;
 		String8 name;		// interchangeable for variable name or function name
+		NaryOpKind nary_ops;
 		BinOpKind bin_ops;
 		UnOpKind un_ops;
 	};
@@ -170,6 +179,8 @@ struct Node
 	Rng1U64 modified;
 
 };
+
+// TODO(sb): make free list link less intrustive struct NodePoolNode
 
 struct NodePool
 {
@@ -186,16 +197,16 @@ struct NodePool
 
 enum class Precedence : U32
 {
-	MIN,
+	MIN=0,
 
-	TERM,
-	ADDITIVE,
-	MULTIPLICATIVE,
-	IMPLICITMULT,
-	UNARY,
-	EXPONENTIAL,
+	TERM=1,
+	ADDITIVE=10,
+	MULTIPLICATIVE=20,
+	IMPLICITMULT=30,
+	UNARY=40,
+	EXPONENTIAL=50,
 
-	MAX,
+	MAX = 100, // make it U32 max
 };
 
 struct Lexer
@@ -245,6 +256,8 @@ global read_only Node nil_node =
 	&nil_node,
 	&nil_node,
 	&nil_node,
+	&nil_node,
+	&nil_node,
 };
 
 ////////////////////////////////
@@ -258,9 +271,6 @@ internal void MsgListPush(Arena* arena, MsgList* msgs, Node* node, MsgKind kind,
 // sb: nil
 internal B32 NodeIsNil(Node* node);
 #define NodeSetNil(p) ((p) = &nil_node)
-
-// sb: tree building
-internal Node* PushNode(Arena* arena, NodeKind kind, double value, String8 name, BinOpKind bk, UnOpKind uk, Rng1U64 src, Rng1U64 mod);
 
 // sb: node pool
 internal Node* NodeAlloc(NodePool* node_pool);
@@ -283,17 +293,25 @@ internal Node* ParseNumeric(Parser* parser);
 internal Node* ParseVariable(Parser* parser);
 internal Node* ParseUnary(Parser* parser);
 internal Node* ParseGroup(Parser* parser);
-// internal Node* ParseInfixExpression(Parser* parser, Node* left);
+internal Node* ParseInfixExpression(Parser* parser, Node* left);
 
 /////////////////////////////////
 //- sb: Parser Helpers
 
 internal constexpr Precedence PrecedenceFromKind(TokenKind tk);
+internal constexpr Precedence CurrentPrecedence(Parser* parser);
 internal constexpr Precedence PeekPrecedence(Parser* parser);
 internal void RefillRingBuffer(Parser* p);
 
 internal void NextToken(Parser* parser);
 
+/////////////////////////////////
+//- sb: Parser Debug Helpers
+
+internal void DebugPrintParseResult(ParseResult result, String8 source);
+internal void DebugPrintNode(Node* node, U32 depth = 0, char const* label = nullptr);
+internal void PrintNode(Node* node, U32 depth, char const* label);
+internal void PrintExpr(Node* node);
 ////////////////////
 } // namespace parse 
 #endif // PARSE_HPP

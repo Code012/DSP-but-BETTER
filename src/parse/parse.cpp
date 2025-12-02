@@ -7,7 +7,7 @@ namespace parse
 { 
 
 global U64 global_node_id = 1;
-
+perthread_static Arena* log_arena;
 
 ////////////////////////////////
 //- Token Types
@@ -79,57 +79,7 @@ MsgListPush(Arena* arena, MsgList* msgs, Node* node, MsgKind kind, String8 strin
 internal B32 
 NodeIsNil(Node* node)
 {
-	return (node == nullptr || node == &nil_node || node->kind == NodeKind::Nil);
-}
-
-// sb: tree building
-internal Node* 
-PushNode(Arena* arena, NodeKind kind, double value, String8 name, BinOpKind bk, UnOpKind uk, Rng1U64 src, Rng1U64 mod)
-{
-	Node* node = PushArray(arena, Node, 1);
-	// error nodes id: 0, valid nodes incremental
-	// node->id = (kind == NodeKind::ErrorMarker ? 0 : ++global_node_id);
-
-	node->bin_left = node->bin_right = node->unary_child = node->func_arguments = &nil_node;
-	node->kind = kind;
-	node->original = src;
-	node->modified = mod;
-
-	if (kind != NodeKind::ErrorMarker)
-		node->id = global_node_id++;
-	else
-		node->id = 0;
-
-	if (kind != NodeKind::ErrorMarker)
-	{
-		switch (kind)
-		{
-		case NodeKind::Number:       
-			node->number = value; 
-			break;
-
-		case NodeKind::Variable:
-		case NodeKind::FunctionCall: 
-			node->name = name; 
-			break;
-
-		case NodeKind::BinaryOp:     
-			node->bin_ops = bk; 
-			break;
-
-		case NodeKind::UnaryOp: 	 
-			node->un_ops = uk; 
-			break;
-
-		case NodeKind::ErrorMarker:
-			node->id = 0;
-
-		default:					 
-			break;
-		}
-	}
-	
-	return node;
+	return (node == nullptr || node == 0 || node == &nil_node || node->kind == NodeKind::Nil);
 }
 
 // sb: node pool
@@ -150,6 +100,7 @@ internal Node* NodeAlloc(NodePool* node_pool)
 		result = PushArray(node_pool->arena, Node, 1);
 	}
 
+	result->bin_left = result->bin_right = result->unary_child = result->nary_first = result->nary_next = &nil_node;
 	return result;
 }
 
@@ -255,7 +206,7 @@ global constexpr Precedence precedence_lookup[static_cast<U64>(TokenKind::MAX)] 
 internal ParseResult 
 ParseFromText(Arena* arena, Parser* parser, String8 string)
 {
-	ArenaTemp scratch = ScratchBegin(arena, 1);
+	ArenaTemp scratch = ScratchBegin(&arena, 1);
 	MsgList msgs = zero_struct;
 
 	Node* expr = ParseExpression(parser, Precedence::MIN);
@@ -275,12 +226,12 @@ internal Node* ParseExpression(Parser* parser, Precedence precedence)
 	Node* left = ParsePrefixExpression(parser);
 
 	// parse all LED (rhs, attatch operators and rhs expressions)
-	// while (precedence < PeekPrecedence(parser))
-	// {
-	// 	NextToken(parser);
+	while (precedence < PeekPrecedence(parser))
+	{
+		NextToken(parser);
 
-	// 	left = ParseInfixExpression(parser, left);
-	// }
+		left = ParseInfixExpression(parser, left);
+	}
 
 	return left;
 }
@@ -289,7 +240,7 @@ internal Node* ParseExpression(Parser* parser, Precedence precedence)
 
 internal Node* ParsePrefixExpression(Parser* p)
 {
-	Node* result;
+	Node* result = &nil_node;
 
 	switch (p->current_token.kind)
 	{
@@ -309,15 +260,27 @@ internal Node* ParsePrefixExpression(Parser* p)
 			result = ParseGroup(p);
 			break;
 		default:
-			{
-			
+		{
+			// log error to side channel
+			String8 error_msg_start = Str8Lit("Unexpected token");
 
-			}
+			U8* bad_char_start = p->lexer.src.str + p->current_token.range.min; 
+			String8 error_msg_middle = Str8Range(bad_char_start, bad_char_start+1); // bad character string
+			
+			String8 error_msg_end = Str8Lit("at position");
+
+			String8 msg = PushStr8F(log_arena, "%S '%S' %S %llu", error_msg_start, error_msg_middle, error_msg_end, p->current_token.range.min+1);
+			MsgListPush(log_arena, &p->msgs, result, MsgKind::Error, msg);
+			// create error node
+			result = NodeAlloc(&p->node_pool);
+			result->kind = NodeKind::ErrorMarker;
+		}
 		// implicit mult
 	}
 
 	return result;
 }
+
 
 internal Node* ParseNumeric(Parser* parser)
 {
@@ -330,10 +293,10 @@ internal Node* ParseNumeric(Parser* parser)
 	
 	F64 value = strtod((const char*)lexeme.str, nullptr);
 	Rng1U64 num_range = parser->current_token.range;
-	NextToken(parser);
+	// NextToken(parser);
 
 	Node* result = NodeAlloc(&parser->node_pool);
-	result->bin_left = result->bin_right = result->unary_child = result->func_arguments = &nil_node;
+	result->bin_left = result->bin_right = result->unary_child = result->nary_first = result->nary_next = &nil_node;
 
 	result->number = value;
 	result->id = global_node_id++;
@@ -353,10 +316,10 @@ internal Node* ParseVariable(Parser* parser)
 
 	Rng1U64 var_range = parser->current_token.range;
 	String8 var_name = Str8Range(src_start, src_opl);
-	NextToken(parser);
+	// NextToken(parser);
 
 	Node* result = NodeAlloc(&parser->node_pool);
-	result->bin_left = result->bin_right = result->unary_child = result->func_arguments = &nil_node;
+	result->bin_left = result->bin_right = result->unary_child = result->nary_first = result->nary_next = &nil_node;
 
 
 	result->name = var_name;
@@ -379,7 +342,7 @@ internal Node* ParseUnary(Parser* p)
 
 	Node* result = NodeAlloc(&p->node_pool);
 
-	result->bin_left = result->bin_right = result->unary_child = result->func_arguments = &nil_node;
+	result->bin_left = result->bin_right = result->unary_child = result->nary_first = result->nary_next = &nil_node;
 	
 	result->kind = NodeKind::UnaryOp;
 	result->un_ops = is_negative ? UnOpKind::Negate: UnOpKind::Positive;
@@ -399,7 +362,7 @@ internal Node* ParseGroup(Parser* parser)
 {
 	NextToken(parser);
 	Node* result = ParseExpression(parser, Precedence::MIN);
-	if (parser->current_token.kind == TokenKind::CloseParen)
+	if (parser->peek_token.kind == TokenKind::CloseParen)
 	{
 		NextToken(parser);
 	}
@@ -407,10 +370,70 @@ internal Node* ParseGroup(Parser* parser)
 	return result;
 }
 
-// internal Node* ParseInfixExpression(Parser* parser, Node* left)
-// {
+internal Node* ParseInfixExpression(Parser* parser, Node* left)
+{
+	Node* result = NodeAlloc(&parser->node_pool);
 
-// }
+	switch (parser->current_token.kind)
+	{
+		case TokenKind::Plus: 	
+			result->kind = NodeKind::NaryOp;  
+			result->nary_ops = NaryOpKind::Plus;
+			break;
+		case TokenKind::Star:	
+			result->kind = NodeKind::NaryOp;  
+			result->nary_ops = NaryOpKind::Multiply;
+			break;
+		case TokenKind::Minus:	
+			result->kind = NodeKind::BinaryOp;
+			result->bin_ops = BinOpKind::Minus;
+			break;
+		case TokenKind::Slash:	
+			result->kind = NodeKind::BinaryOp;
+			result->bin_ops = BinOpKind::Divide;
+			break;
+		default: 
+			result->kind = NodeKind::ErrorMarker; break;
+	}
+
+	
+
+	switch (result->kind)
+	{
+		case NodeKind::BinaryOp:
+		{
+			Precedence curr_prec = CurrentPrecedence(parser);
+			NextToken(parser);
+			result->bin_left = left;
+			result->bin_right = ParseExpression(parser, curr_prec); // current precedence = left binding power
+		} break;
+		// at the parsing stage nary op behaves like binary op
+		case NodeKind::NaryOp:
+		{
+			Precedence curr_prec = CurrentPrecedence(parser);
+			NextToken(parser);
+			result->nary_first = left;
+			result->nary_next = ParseExpression(parser, curr_prec); // current precedence = left binding power
+		}break;
+		case NodeKind::ErrorMarker:
+		{
+			// log error to side channel
+			String8 error_msg_start = Str8Lit("Unexpected token");
+
+			U8* bad_char_start = parser->lexer.src.str + parser->current_token.range.min; 
+			String8 error_msg_middle = Str8Range(bad_char_start, bad_char_start+1); // bad character string
+			
+			String8 error_msg_end = Str8Lit("at position");
+
+			String8 msg = PushStr8F(log_arena, "%S '%S' %S %llu", error_msg_start, error_msg_middle, error_msg_end, parser->current_token.range.min+1);
+			MsgListPush(log_arena, &parser->msgs, result, MsgKind::Error, msg);
+
+		} break;
+		default: Assert(false); break; // shouldnt happen
+	}
+
+	return result;
+}
 
 /////////////////////////////////
 //- sb: Parser Helpers
@@ -419,6 +442,11 @@ internal constexpr Precedence
 PrecedenceFromKind(TokenKind tk)
 {
 	return precedence_lookup[static_cast<U64>(tk)];
+}
+internal constexpr Precedence
+CurrentPrecedence(Parser* parser)
+{
+	return PrecedenceFromKind(parser->current_token.kind);
 }
 internal constexpr Precedence
 PeekPrecedence(Parser* parser)
@@ -466,6 +494,213 @@ internal void NextToken(Parser* parser)
 
 		parser->peek_token = ring_buf->tokens[ring_buf->head];
 	}
+}
+
+/////////////////////////////////
+//- sb: Parser Debug Helpers
+
+internal void DebugPrintParseResult(ParseResult result, String8 source)
+{
+	printf("\n=== Parse Result ==\n");
+
+	if (result.msgs.count > 0)
+	{
+		printf("\nMessages (%llu):\n", result.msgs.count);
+		for EachNode(msg, Msg, result.msgs.first)
+		{
+			char const* kind_str = "UNKNOWN";
+			switch (msg->kind)
+			{
+				case MsgKind::Warning: kind_str = ColouriseYellow("WARNING"); break;
+				case MsgKind::Error:   kind_str = ColouriseRed("ERROR"); break;
+				default: break;
+			}
+
+			printf("  [%s] %.*s\n", kind_str, Str8Varg(msg->string));
+		}
+		printf("\n");
+	}
+
+	// print tree
+	#if DEBUG_PARSER_TREE_VIEW
+	printf("TREE:\n");
+	DebugPrintNode(result.root, 1, "root");
+	#else
+	PrintNode(result.root, 1, "root");
+	#endif
+	printf("\n");
+}
+
+internal void PrintNode(Node* node, U32 depth, char const* label)
+{
+    (void)depth;
+    (void)label;
+    PrintExpr(node);
+}
+
+
+internal void PrintExpr(Node* node)
+{
+    if (NodeIsNil(node)) {
+        printf("<nil>");
+        return;
+    }
+
+    switch (node->kind)
+    {
+        case NodeKind::Number:
+            printf("%g", node->number);
+            break;
+
+        case NodeKind::Variable:
+            printf("%.*s", Str8Varg(node->name));
+            break;
+
+        case NodeKind::UnaryOp:
+        {
+            char const* op = (node->un_ops == UnOpKind::Negate) ? "-" : "+";
+            printf("(");
+            printf("%s", op);
+            PrintExpr(node->unary_child);
+            printf(")");
+        } break;
+
+        case NodeKind::BinaryOp:
+        {
+            char const* op = "?";
+            switch (node->bin_ops) {
+                case BinOpKind::Minus:  op = "-"; break;
+                case BinOpKind::Divide: op = "/"; break;
+                default: break;
+            }
+
+            printf("(");
+            PrintExpr(node->bin_left);
+            printf(" %s ", op);
+            PrintExpr(node->bin_right);
+            printf(")");
+        } break;
+
+        case NodeKind::NaryOp:
+        {
+            char const* op = "?";
+            switch (node->nary_ops) {
+                case NaryOpKind::Plus:     op = "+"; break;
+                case NaryOpKind::Multiply: op = "*"; break;
+                default: break;
+            }
+
+            printf("(");
+
+            PrintExpr(node->nary_first);
+            printf(" %s ", op);
+            PrintExpr(node->nary_next);
+            printf(")");
+        } break;
+
+        default:
+            printf("<unknown>");
+            break;
+    }
+}
+
+
+
+internal void DebugPrintNode(Node* node, U32 depth, char const* label)
+{
+	// print indentation and optional label
+	if (NodeIsNil(node))
+	{
+		if (label)
+		{
+			printf("%*s%s: <nil>\n", depth*2, "", label);
+		}
+
+		return;
+	}
+
+	if (label)
+	{
+		printf("%*s%s: ", depth*2, "", label);
+	}
+	else
+	{
+		printf("%*s", depth*2, "");
+	}
+
+	// print node info
+	switch (node->kind)
+	{
+		case NodeKind::Nil:
+		{
+			printf("<nil node>\n");
+		} break;
+		case NodeKind::Number:
+		{
+			printf("Number( id=%llu, value=%.6f, range=[%llu,%llu) )\n",
+					node->id, node->number, node->original.min, node->original.max);
+		} break;
+		case NodeKind::Variable:
+		{
+			printf("Variable( id=%llu, name=%.*s, range=[%llu,%llu) )\n",
+					node->id, Str8Varg(node->name), node->original.min, node->original.max);
+		} break;
+		case NodeKind::UnaryOp:
+		{
+			char const* op_str = (node->un_ops == UnOpKind::Negate) ? "-" : "+";
+			printf("UnaryOp( id=%llu, op='%s', range=[%llu,%llu) )\n",
+					node->id, op_str, node->original.min, node->original.max);
+
+			DebugPrintNode(node->unary_child, depth + 1, "child");
+		} break;
+		case NodeKind::BinaryOp:
+		{	
+			char const* op_str = "?";
+			switch (node->bin_ops)
+			{
+				case BinOpKind::Minus:		op_str = "-"; break;
+				case BinOpKind::Divide:		op_str = "/"; break;
+				case BinOpKind::Fraction:	op_str = "frac"; break;
+				case BinOpKind::Power:		op_str = "^"; break;
+				default: break;
+			}
+
+			printf("BinaryOp( id=%llu, op='%s', range=[%llu,%llu) )\n",
+					node->id, op_str, node->original.min, node->original.max);
+
+			DebugPrintNode(node->bin_left, depth + 1, "left");
+			DebugPrintNode(node->bin_right, depth + 1, "right");
+		} break;
+		case NodeKind::NaryOp:
+		{	
+			char const* op_str = "?";
+			switch (node->nary_ops)
+			{
+				case NaryOpKind::Plus:		op_str = "+"; break;
+				case NaryOpKind::Multiply:	op_str = "*"; break;
+				default: break;
+			}
+
+			printf("NaryOp( id=%llu, op='%s', range=[%llu,%llu) )\n",
+					node->id, op_str, node->original.min, node->original.max);
+
+			DebugPrintNode(node->nary_first, depth + 1, "left");
+			DebugPrintNode(node->nary_next, depth + 1, "right");
+		} break;
+		// case NodeKind::FunctionCall: break;
+		case NodeKind::ErrorMarker:
+		{
+			printf("\x1b[31m ERROR( id=%llu, range=[%llu,%llu) ) \x1b[0m\n",
+					node->id, node->original.min, node->original.max);			
+		} break;
+		default:
+		{
+			printf("Unknown( kind=%d )\n", (U32)node->kind);		
+		} break;
+	}
+
+
+
 }
 
 } // namespace parse
