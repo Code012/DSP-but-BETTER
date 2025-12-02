@@ -7,7 +7,7 @@
 // TODO: (me): Implement Unicode Conversions (when you need them)
 
 ////////////////////////////////
-//~ String Types
+//- String Types
 
 struct String8
 {
@@ -16,7 +16,7 @@ struct String8
 };
 
 ////////////////////////////////
-//~ String List & Array Types
+//- String List & Array Types
 
 struct String8Node
 {
@@ -40,7 +40,7 @@ struct String8Array
 };
 
 ////////////////////////////////
-//~ String Matching, Splitting & Joining Types
+//- String Matching, Splitting & Joining Types
 //TODO: (sb): String splitting 
 
 enum class StringMatchFlags : U32
@@ -66,7 +66,7 @@ struct StringJoin
 };
 
 ///////////////////////////////
-//~ Character Classification & Conversion Functions
+//- Character Classification & Conversion Functions
 // TODO: (sb): implement as needed
 internal B32 CharIsAlpha(U8 c);
 internal B32 CharIsAlphaUpper(U8 c);
@@ -78,12 +78,12 @@ internal B32 LowerFromChar(U8 c);
 
 
 ////////////////////////////////
-//~ C-String Measurement
+//- C-String Measurement
 
 internal U64 CString8Length(U8 *cstr);
 
 ////////////////////////////////
-//~ String Constructors
+//- String Constructors
 
 #define Str8Lit(S) Str8((U8*)(S), sizeof(S) - 1)
 #define Str8Varg(S) (int)((S).size), ((S).str)     // for variadic functions where the format specifier is "%.*s" meaning an int value (width) is provided before the char string.
@@ -99,23 +99,26 @@ internal String8 Str8CString(char *c);
 internal String8 Str8CStringCapped(void *cstr, void *cap);
 
 ///////////////////////////////
-//~ String Matching
+//- String Matching
 
 internal B32 Str8Match(String8 a, String8 b, StringMatchFlags flags);
 
 //////////////////////////////
-//~ String Slicing
+//- String Slicing
 
 internal String8 Str8Substr(String8 str, Rng1U64 range);
 
 ////////////////////////////////
-//~ String Formatting & Copying
+//- String Formatting & Copying
+
+internal String8 PushStr8FV(Arena* arena, char const* fmt, va_list args);
+internal String8 PushStr8F(Arena* arena, char const* fmt, ...);
 
 ////////////////////////////////
-//~ String List Construction Functions
+//- String List Construction Functions
 
 ////////////////////////////////
-//~ String Splitting & Joining
+//- String Splitting & Joining
 
 // internal String8List Str8Split(Arena *arena, String8 string, U8 *split_chars, U64 split_char_count, StringSplitFlags flags, )
 internal String8     Str8ListJoin(Arena *arena, String8List *list, StringJoin *optional_params);

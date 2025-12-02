@@ -4,7 +4,7 @@
 
 
 ///////////////////////////////
-//~ Character Classification & Conversion Functions
+//- Character Classification & Conversion Functions
 
 internal B32 
 CharIsAlpha(U8 c)
@@ -49,7 +49,7 @@ LowerFromChar(U8 c)
 
 
 ////////////////////////////////
-//~ C-String Measurement
+//- C-String Measurement
 
 internal U64 
 CString8Length(U8 *cstr)
@@ -65,7 +65,7 @@ CString8Length(U8 *cstr)
 }
 
 ////////////////////////////////
-//~ String Constructors
+//- String Constructors
 
 internal String8 
 Str8(U8 *str, U64 size)
@@ -108,7 +108,7 @@ Str8CStringCapped(void *cstr, void *cap)
 
 
 ///////////////////////////////
-//~ String Matching
+//- String Matching
 
 
 internal B32 
@@ -144,7 +144,7 @@ Str8Match(String8 a, String8 b, StringMatchFlags flags)
 }
 
 //////////////////////////////
-//~ String Slicing
+//- String Slicing
 
 
 internal String8 
@@ -158,13 +158,37 @@ Str8Substr(String8 str, Rng1U64 range)
 }
 
 ////////////////////////////////
-//~ String Formatting & Copying
+//- String Formatting & Copying
+
+internal String8 
+PushStr8FV(Arena* arena, char const* fmt, va_list args)
+{
+	va_list args2;
+	va_copy(args2, args);
+	U32 needed_bytes = sb_stbsp_vsnprintf(0, 0, fmt, args) + 1;
+	String8 result = zero_struct;
+	result.str = PushArrayNoZero(arena, U8, needed_bytes);
+	result.size = sb_stbsp_vsnprintf((char*)result.str, needed_bytes, fmt, args2);
+	result.str[result.size] = 0;
+	va_end(args2);
+	return result;
+}
+internal String8 
+PushStr8F(Arena* arena, char const* fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	String8 result = PushStr8FV(arena, fmt, args);
+	va_end(args);
+	return result;
+}
 
 ////////////////////////////////
-//~ String List Construction Functions
+//- String List Construction Functions
+
 
 ////////////////////////////////
-//~ String Splitting & Joining Types
+//- String Splitting & Joining Types
 
 
 // internal String8List Str8Split(Arena *arena, String8 string, U8 *split_chars, U64 split_char_count, StringSplitFlags flags, )
