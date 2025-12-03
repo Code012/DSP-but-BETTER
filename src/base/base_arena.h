@@ -15,7 +15,7 @@
 #endif
 
 #if !defined(ARENA_DECOMMIT_THRESHOLD)
-# define ARENA_DECOMMIT_THRESHOLD KiB(500)		// reset to 64 MiB for serious projects
+# define ARENA_DECOMMIT_THRESHOLD KiB(64)		// reset to 64 MiB for serious projects
 #endif
 
 #define ARENA_HEADER_SIZE sizeof(Arena)
