@@ -497,7 +497,7 @@ internal void NextToken(Parser* parser)
 }
 
 /////////////////////////////////
-//- sb: Parser Debug Helpers
+//- sb: Parser Debug Helpers (authored with AI assistance GPT)
 
 internal void DebugPrintParseResult(ParseResult result, String8 source)
 {
