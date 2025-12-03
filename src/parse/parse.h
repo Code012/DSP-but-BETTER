@@ -293,6 +293,7 @@ internal Node* ParseNumeric(Parser* parser);
 internal Node* ParseVariable(Parser* parser);
 internal Node* ParseUnary(Parser* parser);
 internal Node* ParseGroup(Parser* parser);
+
 internal Node* ParseInfixExpression(Parser* parser, Node* left);
 
 /////////////////////////////////
@@ -301,17 +302,18 @@ internal Node* ParseInfixExpression(Parser* parser, Node* left);
 internal constexpr Precedence PrecedenceFromKind(TokenKind tk);
 internal constexpr Precedence CurrentPrecedence(Parser* parser);
 internal constexpr Precedence PeekPrecedence(Parser* parser);
-internal void RefillRingBuffer(Parser* p);
 
+internal void RefillRingBuffer(Parser* p);
 internal void NextToken(Parser* parser);
 
 /////////////////////////////////
-//- sb: Parser Debug Helpers
+//- sb: Parser Debug Helpers (authored with AI assistance, GPT-5)
 
 internal void DebugPrintParseResult(ParseResult result, String8 source);
 internal void DebugPrintNode(Node* node, U32 depth = 0, char const* label = nullptr);
 internal void PrintNode(Node* node, U32 depth, char const* label);
 internal void PrintExpr(Node* node);
+
 ////////////////////
 } // namespace parse 
 #endif // PARSE_HPP

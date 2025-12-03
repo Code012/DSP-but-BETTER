@@ -7,7 +7,6 @@ namespace parse
 { 
 
 global U64 global_node_id = 1;
-perthread_static Arena* log_arena;
 
 ////////////////////////////////
 //- Token Types
@@ -83,7 +82,8 @@ NodeIsNil(Node* node)
 }
 
 // sb: node pool
-internal Node* NodeAlloc(NodePool* node_pool)
+internal Node* 
+NodeAlloc(NodePool* node_pool)
 {
 	// grab top of free list
 	Node* result = node_pool->first_free_node;
@@ -115,7 +115,8 @@ internal void NodeRelease(NodePool* node_pool, Node* node)
 ////////////////////////////////
 //- sb: Text -> Tokens Functions
 
-internal Token NextTokenFromText(U8* byte_first, U8* one_past_last, U8*& cursor)
+internal Token 
+NextTokenFromText(U8* byte_first, U8* one_past_last, U8*& cursor)
 {
 	// scan string and produce token
 	TokenKind kind = {};
@@ -219,7 +220,8 @@ ParseFromText(Arena* arena, Parser* parser, String8 string)
 	return result;
 }
 
-internal Node* ParseExpression(Parser* parser, Precedence precedence)
+internal Node* 
+ParseExpression(Parser* parser, Precedence precedence)
 {
 
 	// parse NUD (lhs)
@@ -238,7 +240,8 @@ internal Node* ParseExpression(Parser* parser, Precedence precedence)
 
 
 
-internal Node* ParsePrefixExpression(Parser* p)
+internal Node* 
+ParsePrefixExpression(Parser* p)
 {
 	Node* result = &nil_node;
 
@@ -282,7 +285,8 @@ internal Node* ParsePrefixExpression(Parser* p)
 }
 
 
-internal Node* ParseNumeric(Parser* parser)
+internal Node* 
+ParseNumeric(Parser* parser)
 {
 	U8* base = parser->lexer.src.str;
 
@@ -307,7 +311,8 @@ internal Node* ParseNumeric(Parser* parser)
 	return result;	
 }
 
-internal Node* ParseVariable(Parser* parser)
+internal Node* 
+ParseVariable(Parser* parser)
 {
 	U8* base = parser->lexer.src.str;
 
@@ -331,7 +336,8 @@ internal Node* ParseVariable(Parser* parser)
 	return result;
 }
 
-internal Node* ParseUnary(Parser* p)
+internal Node* 
+ParseUnary(Parser* p)
 {	
 
 	Rng1U64 op_range = p->current_token.range;
@@ -358,7 +364,8 @@ internal Node* ParseUnary(Parser* p)
 	return result;
 }
 
-internal Node* ParseGroup(Parser* parser)
+internal Node* 
+ParseGroup(Parser* parser)
 {
 	NextToken(parser);
 	Node* result = ParseExpression(parser, Precedence::MIN);
@@ -370,7 +377,8 @@ internal Node* ParseGroup(Parser* parser)
 	return result;
 }
 
-internal Node* ParseInfixExpression(Parser* parser, Node* left)
+internal Node* 
+ParseInfixExpression(Parser* parser, Node* left)
 {
 	Node* result = NodeAlloc(&parser->node_pool);
 
@@ -454,7 +462,8 @@ PeekPrecedence(Parser* parser)
 	return PrecedenceFromKind(parser->peek_token.kind);
 }
 
-internal void RefillRingBuffer(Parser* p)
+internal void 
+RefillRingBuffer(Parser* p)
 {
 	TokenRingBuffer* ring_buf = &(p->tokens_rb);
 
@@ -470,7 +479,8 @@ internal void RefillRingBuffer(Parser* p)
 	ring_buf->tail = TOKEN_BUF_SIZE;
 }
 
-internal void NextToken(Parser* parser)
+internal void 
+NextToken(Parser* parser)
 {
 	if (parser->peek_token.kind != TokenKind::EndOfInput)
 	{
@@ -497,7 +507,7 @@ internal void NextToken(Parser* parser)
 }
 
 /////////////////////////////////
-//- sb: Parser Debug Helpers (authored with AI assistance GPT)
+//- sb: Parser Debug Helpers (authored with AI assistance, GPT-5)
 
 internal void DebugPrintParseResult(ParseResult result, String8 source)
 {
