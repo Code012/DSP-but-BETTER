@@ -7,3 +7,24 @@ List of completed "things" for reference when writing project summary:
 - expression tree nodes allocated onto an growable memory pool (arena-backed free list). Currently don't decommit committed memory at all, memory freeing policy is simply push onto freelist. Don't think I need to decommit memory at all, just let the OS reclaim that memory when the program closes. We'll see.
 
 - parser uses a side-channel error and warning system so all the errors can be caught and displayed. Warnings won't stop the program but errors will. errors logged onto its own dedicated arena.
+
+
+Entry point into program:
+os_core_win32.cpp defines windows specific entry point that calls BaseMainEntry
+os_core_linux.cpp defined linux specific entry point that calls BaseMainEntry
+Macro BUILD_ENTRY_POINT_DEFINING_UNIT for making a TU an entry point for the executable
+|
+V
+base_project.h defines BaseMainEntry for init code
+|
+V
+write function in main file: void EntryPoint(U64 argument_count, char** arguments)
+pair with macro: BUILD_ENTRY_POINT_DEFINING_UNIT 
+
+
+Code Tags Reference:
+//@os_shared        // Code that's the same across all OS backends
+//@os_per_backend   // Code that differs per OS
+//@os_hooks         // Functions the OS layer expects you to implement
+//@helpers          // Helper functions
+//@thread_context   // Thread-local context stuff
