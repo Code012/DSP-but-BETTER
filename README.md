@@ -1,4 +1,4 @@
-"#DSP-but-BETTER" 
+#DSP-but-BETTER
 
 List of completed "things" for reference when writing project summary:
 1. Parser
