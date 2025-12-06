@@ -9,6 +9,8 @@ List of completed "things" for reference when writing project summary:
 - parser uses a side-channel error and warning system so all the errors can be caught and displayed. Warnings won't stop the program but errors will. errors logged onto its own dedicated arena.
 
 
+<br>
+
 Entry point into program:
 
 os_core_win32.cpp defines windows specific entry point that calls BaseMainEntry
@@ -31,6 +33,7 @@ write function in main file: void EntryPoint(U64 argument_count, char** argument
 
 pair with macro: BUILD_ENTRY_POINT_DEFINING_UNIT 
 
+<br>
 
 Code Tags Reference:
 //@os_shared        // Code that's the same across all OS backends
