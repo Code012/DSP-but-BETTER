@@ -14,25 +14,27 @@ List of "things" for reference when writing project summary also just in general
 
 2. Entry point into program:
 
-os_core_win32.cpp defines windows specific entry point that calls BaseMainEntry
+┌─────────────────────────────────────┐
+│  OS Layer (Windows/Linux)           │
+│  • os_core_win32.cpp                │
+│  • main() → BaseMainEntry()         │
+└──────────────┬──────────────────────┘
+               │
+               ↓
+┌─────────────────────────────────────┐
+│  Base Layer                         │
+│  • BaseMainEntry()                  │
+│  • Initialize subsystems            │
+└──────────────┬──────────────────────┘
+               │
+               ↓
+┌─────────────────────────────────────┐
+│  Application                        │
+│  • EntryPoint()                     │
+│  • Your app code                    │
+└─────────────────────────────────────┘
 
-os_core_linux.cpp defined linux specific entry point that calls BaseMainEntry
-
-Macro BUILD_ENTRY_POINT_DEFINING_UNIT for making a TU an entry point for the executable
-
-|
-
-V
-
-base_project.h defines BaseMainEntry for init code
-
-|
-
-V
-
-write function in main file: void EntryPoint(U64 argument_count, char** arguments)
-
-pair with macro: BUILD_ENTRY_POINT_DEFINING_UNIT 
+**Macro:** Set `BUILD_ENTRY_POINT_DEFINING_UNIT=1` in unity build
 
 ---
 
