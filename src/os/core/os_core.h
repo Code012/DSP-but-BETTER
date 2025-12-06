@@ -26,5 +26,11 @@ internal void  OS_Release(void* memory, U64 size);
 ////////////////////////////////
 // TODO: Libraries
 
+////////////////////////////////
+//- Entry Point
+// NOTE: If BUILD_ENTRY_POINT_DEFINING_UNIT is defined to 1, 
+// then the translation unit will contain the entry point for 
+// the executable. The OS layer will define main() and call 
+// EntryPoint(), which must be defined by the application.
 
 #endif // OS_CORE_HPP

@@ -1,24 +1,29 @@
 //////////////////////////////
-//~ Build Options
+//- Build Options
 
 #define BUILD_TITLE "tester"
-// 
+#define BUILD_ENTRY_POINT_DEFINING_UNIT 1 // export to batch file
+#define BUILD_COMMAND_LINE_INTERFACE 1 // export to batch file
+
+//////////////////////////////
+//- Parser Test Options
+
 #define DEBUG_PARSER_TREE_VIEW 0
 
 
 //////////////////////////////
-//~ Includes
+//- Includes
 
-//~ foreign includes
+//- foreign includes
 #include <type_traits>
 
-//~ [h] root
+//- [h] root
 #include "base/base_inc.h"
 #include "os/os_inc.h"
 #include "parse/parse_inc.h"
 #include "tester/simpletest.h"
 
-//~ [cpp] root
+//- [cpp] root
 #include "base/base_inc.cpp"
 #include "os/os_inc.cpp"
 #include "parse/parse_inc.cpp"
@@ -152,8 +157,6 @@ DEFINE_TEST_G(TestNextToken, Parser) {
 
     ArenaTemp scratch = ScratchBegin(0,0);
     
-    parse::log_arena = ArenaAlloc();
-
     String8 tests[] = { // gpt for test cases
         Str8Lit("2+2"),
         Str8Lit("-5"),
@@ -195,7 +198,8 @@ DEFINE_TEST_G(TestNextToken, Parser) {
     ScratchEnd(scratch);
 }
 
-int main(void) 
+internal void 
+EntryPoint(U64 argument_count, char** arguments) 
 {
 
     bool pass = true;
@@ -204,6 +208,5 @@ int main(void)
     {
         pass &= TestFixture::ExecuteTestGroup(group, TestFixture::Verbose);
     }
-    return pass ? 0 : 1;
 }
 

@@ -175,3 +175,6 @@ ArenaGetScratch(Arena **excluded_arenas, U32 excluded_count)
 
 	return result;
 }
+
+//- Log arena
+perthread_static Arena* log_arena;
