@@ -47,3 +47,6 @@ List of "things" for reference when writing project summary also just in general
 //@helpers          // Helper functions
 //@thread_context   // Thread-local context stuff
 ```
+
+
+Code base heavily inspired by Ryan Fleury and Allen Webster.
