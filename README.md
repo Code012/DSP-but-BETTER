@@ -18,11 +18,13 @@ os_core_linux.cpp defined linux specific entry point that calls BaseMainEntry
 Macro BUILD_ENTRY_POINT_DEFINING_UNIT for making a TU an entry point for the executable
 
 |
+
 V
 
 base_project.h defines BaseMainEntry for init code
 
 |
+
 V
 
 write function in main file: void EntryPoint(U64 argument_count, char** arguments)
