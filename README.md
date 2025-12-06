@@ -1,6 +1,7 @@
 # DSP-but-BETTER
 
-List of completed "things" for reference when writing project summary:
+List of "things" for reference when writing project summary also just in general:
+
 1. Parser
 - parser utilises N-read N-write mechanism via a ring buffer that holds 64 tokens. So writes 64-tokens to ring buffer then reads 64-tokens. Advice from NeGate, helps keep data "hot" entirely in L1 cache. After writing 64 tokens, all cache lines for the buffer have been loaded so reading the 64 tokens hit the exact same cache lines that were fetched during writes and will not have been evicted because the working set is tiny. Also a lineary predictable memory access pattern helps. It's better than 1-write 1-read, alsways better to do it in batches, hence N-write N-read.
 
@@ -9,9 +10,9 @@ List of completed "things" for reference when writing project summary:
 - parser uses a side-channel error and warning system so all the errors can be caught and displayed. Warnings won't stop the program but errors will. errors logged onto its own dedicated arena.
 
 
-<br>
+---
 
-Entry point into program:
+2. Entry point into program:
 
 os_core_win32.cpp defines windows specific entry point that calls BaseMainEntry
 
@@ -33,9 +34,9 @@ write function in main file: void EntryPoint(U64 argument_count, char** argument
 
 pair with macro: BUILD_ENTRY_POINT_DEFINING_UNIT 
 
-<br>
+---
 
-Code Tags Reference:
+3. Code Tags Reference:
 //@os_shared        // Code that's the same across all OS backends
 //@os_per_backend   // Code that differs per OS
 //@os_hooks         // Functions the OS layer expects you to implement
