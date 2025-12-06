@@ -40,8 +40,10 @@ List of "things" for reference when writing project summary also just in general
 ---
 
 3. Code Tags Reference:
+```
 //@os_shared        // Code that's the same across all OS backends
 //@os_per_backend   // Code that differs per OS
 //@os_hooks         // Functions the OS layer expects you to implement
 //@helpers          // Helper functions
 //@thread_context   // Thread-local context stuff
+```
