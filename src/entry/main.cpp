@@ -144,11 +144,33 @@ EntryPoint(U64 argument_count, char** arguments)
 	while (!WindowShouldClose()) 
 	{
 		Clay_SetLayoutDimensions(Clay_Dimensions {(float)GetScreenWidth(), (float)GetScreenHeight() });
+		static float targetScrollY = 0.0f;
+		static float currentScrollY = 0.0f;
+		static float previousScrollY = 0.0f;
 
 		Vector2 mousePosition = GetMousePosition();
 		Vector2 scrollDelta = GetMouseWheelMoveV();
-		Clay_SetPointerState(Clay_Vector2 { mousePosition.x, mousePosition.y }, IsMouseButtonDown(0) );
-		Clay_UpdateScrollContainers(true, Clay_Vector2 { scrollDelta.x, scrollDelta.y }, GetFrameTime() );
+		targetScrollY += scrollDelta.y * 20.0f;
+
+		// Frame-independent smooth scrolling (keep this smooth)
+		float dampingFactor = 10.0f;
+		currentScrollY += (targetScrollY - currentScrollY) * dampingFactor * GetFrameTime();
+
+		// Calculate delta without rounding during interpolation
+		float frameScrollDelta = currentScrollY - previousScrollY;
+		previousScrollY = currentScrollY;
+
+		Clay_SetPointerState(Clay_Vector2 { mousePosition.x, mousePosition.y }, IsMouseButtonDown(0));
+		Clay_UpdateScrollContainers(true, Clay_Vector2 { 0, frameScrollDelta }, GetFrameTime());
+		// Vector2 mousePosition = GetMousePosition();
+		// Vector2 scrollDelta = GetMouseWheelMoveV();
+
+		// F32 scroll_multiplier = 30.0f;
+		// scrollDelta.x *= scroll_multiplier;
+		// scrollDelta.y *= scroll_multiplier;
+
+		// Clay_SetPointerState(Clay_Vector2 { mousePosition.x, mousePosition.y }, IsMouseButtonDown(0) );
+		// Clay_UpdateScrollContainers(true, Clay_Vector2 { scrollDelta.x, scrollDelta.y }, GetFrameTime() );
 
 
 		// common configs
