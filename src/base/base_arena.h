@@ -43,7 +43,7 @@ struct ArenaTemp
 // Arena Functions
 
 // arena creation/destruction
-internal Arena *ArenaAlloc(U64 size=GiB(8));
+internal Arena *ArenaAlloc(U64 size=GiB(8), B32 ignore_reserve_granularity=false);
 internal void ArenaRelease(Arena **arena);
 
 // arena push/pop/pos core functions

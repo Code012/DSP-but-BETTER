@@ -157,6 +157,17 @@ Str8Substr(String8 str, Rng1U64 range)
 	return str;
 }
 
+internal String8 Prefix8(String8 str, U64 size)
+{
+	return Str8Substr(str, Rng1U64{0, size});
+}
+
+internal String8
+Str8Skip(String8 str, U64 min)
+{
+ return Str8Substr(str, Rng1U64{min, str.size});
+}
+
 ////////////////////////////////
 //- String Formatting & Copying
 
@@ -236,4 +247,70 @@ Str8ListJoin(Arena *arena, String8List *list, StringJoin *optional_params)
 	ptr += join.post.size;
 	*ptr = 0;	// null-terminate
 	return result;
+}
+
+
+#define bitmask1 0x01
+#define bitmask2 0x03
+#define bitmask3 0x07
+#define bitmask4 0x0F
+#define bitmask5 0x1F
+#define bitmask6 0x3F
+#define bitmask7 0x7F
+#define bitmask8 0xFF
+#define bitmask9  0x01FF
+#define bitmask10 0x03FF
+
+internal U32             
+Utf8FromCodepoint(U8 *out, U32 codepoint)
+{
+#define bit8 0x80
+ U32 advance = 0;
+ if(codepoint <= 0x7F)
+ {
+  out[0] = (U8)codepoint;
+  advance = 1;
+ }
+ else if(codepoint <= 0x7FF)
+ {
+  out[0] = (bitmask2 << 6) | ((codepoint >> 6) & bitmask5);
+  out[1] = bit8 | (codepoint & bitmask6);
+  advance = 2;
+ }
+ else if(codepoint <= 0xFFFF)
+ {
+  out[0] = (bitmask3 << 5) | ((codepoint >> 12) & bitmask4);
+  out[1] = bit8 | ((codepoint >> 6) & bitmask6);
+  out[2] = bit8 | ( codepoint       & bitmask6);
+  advance = 3;
+ }
+ else if(codepoint <= 0x10FFFF)
+ {
+  out[0] = (bitmask4 << 4) | ((codepoint >> 18) & bitmask3);
+  out[1] = bit8 | ((codepoint >> 12) & bitmask6);
+  out[2] = bit8 | ((codepoint >>  6) & bitmask6);
+  out[3] = bit8 | ( codepoint        & bitmask6);
+  advance = 4;
+ }
+ else
+ {
+  out[0] = '?';
+  advance = 1;
+ }
+ return advance;
+}
+
+internal String8 
+PushString8FromCodepoint(Arena* arena, U32 codepoint)
+{
+	U8 temp[4];
+    U32 n = Utf8FromCodepoint(temp, codepoint);
+
+    U8* mem = PushArray(arena, U8, n);
+    memcpy(mem, temp, n);
+
+    String8 s;
+    s.str = mem;
+    s.size = n;
+    return s;
 }

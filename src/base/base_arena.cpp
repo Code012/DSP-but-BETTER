@@ -19,11 +19,15 @@
 
 // arena creation/destruction
 internal Arena *
-ArenaAlloc(U64 size)
+ArenaAlloc(U64 size, B32 ignore_reserve_granularity)
 {
-	U64 reserve_size_roundup_granularity = MiB(64);
-	size += reserve_size_roundup_granularity-1;
-	size -= size%reserve_size_roundup_granularity;
+	U64 reserve_size_roundup_granularity;
+	if (!ignore_reserve_granularity)
+	{
+		U64 reserve_size_roundup_granularity = MiB(64);
+		size += reserve_size_roundup_granularity-1;
+		size -= size%reserve_size_roundup_granularity;
+	}
 	
 	void *block = ArenaImpl_Reserve(size);
 	U64 initial_commit_size = ARENA_COMMIT_GRANULARITY;

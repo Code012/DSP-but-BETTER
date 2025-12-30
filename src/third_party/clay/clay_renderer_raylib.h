@@ -1,3 +1,5 @@
+// #include "third_party/clay/clay.h" //GET RID OF THIS
+
 #include "third_party/raylib/include/raylib.h"
 #include "third_party/raylib/include/raymath.h"
 #include "stdint.h"
@@ -12,8 +14,9 @@ Camera Raylib_camera;
 
 typedef enum
 {
-    CUSTOM_LAYOUT_ELEMENT_TYPE_3D_MODEL
+    CUSTOM_LAYOUT_ELEMENT_TYPE_3D_MODEL,
 } CustomLayoutElementType;
+
 
 typedef struct
 {
@@ -28,8 +31,24 @@ typedef struct
     CustomLayoutElementType type;
     union {
         CustomLayoutElement_3DModel model;
+        // CustomLayoutElement_TextEdit text_edit;
     } customData;
 } CustomLayoutElement;
+
+
+// A MALLOC'd buffer, that we keep modifying inorder to save from so many Malloc and Free Calls.
+// Call Clay_Raylib_Close() to free
+static char *temp_render_buffer = NULL;
+static int temp_render_buffer_len = 0;
+
+// Call after closing the window to clean up the render buffer
+void Clay_Raylib_Close()
+{
+    if(temp_render_buffer) free(temp_render_buffer);
+    temp_render_buffer_len = 0;
+
+    CloseWindow();
+}
 
 // Get a ray trace from the screen position (i.e mouse) within a specific section of the screen
 Ray GetScreenToWorldPointWithZDistance(Vector2 position, Camera camera, int screenWidth, int screenHeight, float zDistance)
@@ -128,20 +147,6 @@ void Clay_Raylib_Initialize(int width, int height, const char *title, unsigned i
     SetConfigFlags(flags);
     InitWindow(width, height, title);
 //    EnableEventWaiting();
-}
-
-// A MALLOC'd buffer, that we keep modifying inorder to save from so many Malloc and Free Calls.
-// Call Clay_Raylib_Close() to free
-static char *temp_render_buffer = NULL;
-static int temp_render_buffer_len = 0;
-
-// Call after closing the window to clean up the render buffer
-void Clay_Raylib_Close()
-{
-    if(temp_render_buffer) free(temp_render_buffer);
-    temp_render_buffer_len = 0;
-
-    CloseWindow();
 }
 
 
@@ -252,6 +257,8 @@ void Clay_Raylib_Render(Clay_RenderCommandArray renderCommands, Font* fonts)
                         EndMode3D();
                         break;
                     }
+                    
+                    
                     default: break;
                 }
                 break;

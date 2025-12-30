@@ -83,7 +83,7 @@
 # define zero_struct {0}
 #endif
 
-//////////////////
+////////////////////////////////
 // Base Types
 
 using U8  = uint8_t;
@@ -97,6 +97,13 @@ using S64 = int64_t;
 using B32 = S32; // bool32
 using F32 = float;
 using F64 = double;
+
+
+////////////////////////////////
+//- Limits/Constants
+
+read_only global S64 S64Max = 0x7FFFFFFFFFFFFFFF;
+read_only global S64 S64Min = -1 - 0x7FFFFFFFFFFFFFFF;
 
 ////////////////////////////////
 // Toolchain/Environment Enums

@@ -107,7 +107,8 @@ internal B32 Str8Match(String8 a, String8 b, StringMatchFlags flags);
 //- String Slicing
 
 internal String8 Str8Substr(String8 str, Rng1U64 range);
-
+internal String8 Prefix8(String8 str, U64 size);
+internal String8 Str8Skip(String8 str, U64 min);
 ////////////////////////////////
 //- String Formatting & Copying
 
@@ -122,5 +123,10 @@ internal String8 PushStr8F(Arena* arena, char const* fmt, ...);
 
 // internal String8List Str8Split(Arena *arena, String8 string, U8 *split_chars, U64 split_char_count, StringSplitFlags flags, )
 internal String8     Str8ListJoin(Arena *arena, String8List *list, StringJoin *optional_params);
+
+
+
+internal U32 Utf8FromCodepoint(U8 *out, U32 codepoint);
+internal String8 PushString8FromCodepoint(Arena* arena, U32 codepoint);
 
 #endif // BASE_STRING_HPP
