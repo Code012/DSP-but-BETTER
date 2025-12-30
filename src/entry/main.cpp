@@ -11,16 +11,18 @@
 //////////////////////////////
 //- Includes
 
-//- foreign includes
-#define CLAY_IMPLEMENTATION
-#include "third_party/clay/clay.h"
-#include "third_party/clay/clay_renderer_raylib.h"
-
 //- [h] root
 #include "base/base_inc.h"
 #include "os/os_inc.h"
 #include "parse/parse_inc.h"
+#include "ui/ui_inc.h"
+
+//- foreign includes
+#define CLAY_IMPLEMENTATION
+#include "third_party/clay/clay.h"
+#include "third_party/clay/clay_renderer_raylib.h"
 #include "tester/simpletest.h"
+#include "tester/simpletest.cpp"
 
 //- [h] app
 #include "entry/main_core.h"
@@ -32,57 +34,154 @@
 #include "base/base_inc.cpp"
 #include "os/os_inc.cpp"
 #include "parse/parse_inc.cpp"
-#include "tester/simpletest.cpp"
+#include "ui/ui_inc.cpp"
 
 
+B32 TextOpHasEffect(UI::TextOp* op, UI::TextEditState* before);
+B32 TextOpHasEffect(UI::TextOp* op, UI::TextEditState* before)
+{
+    B32 result = 0;
+    if (op->range.min != op->range.max ||   // non-empty replaced range (delete or overwrite)
+        op->replace_string.size != 0 ||     // inserted text
+        op->new_cursor != before->cursor || // cursor moved
+        op->new_mark != before->mark)       // selection / mark changed
+    {
+        result = 1;
+    }
 
-
-
+    return result;
+}
 
 internal void 
 EntryPoint(U64 argument_count, char** arguments) 
 {
-	// Arena* clay_ui_arena = ArenaAlloc();
-	// void* clay_ui_mem = (void *)(&clay_ui_arena + clay_ui_arena->pos);
 
-    
-	App_Initialise();
+    ArenaTemp scratch = ScratchBegin(nullptr, 0);   // PROGRAM STATE lives on scratch
+        
+	App::Initialise(scratch.arena);
+
+    // TODO(sb): autoscroll
+    // S64 old_autoscroll_bounds = 0;
+    // S64 autoscroll_bounds = 0;
+    // B32 did_autoscroll = false;
+    B32 debug_enabled = false;
 
 	while (!WindowShouldClose()) 
 	{
 // -------------------------------------------------------------------------------------------------
+		ArenaClear(App::app_state->frame_arena);
+        F32 dt = GetFrameTime();
+        // did_autoscroll = false;
+
+        App::app_state->events = OS::GetKeyboardEvents(App::app_state->frame_arena);
+        OS::Event* first_event = App::app_state->events->first;
+
+        for EachNode(event, OS::Event, first_event)
+        {
+
+            // TODO(sb): if (focused) wrap all of text edit code in this
+
+            // update text edit widget from keyboard events
+            UI::TextAction action = UI::TextActionFromEvent(event);
+            
+            UI::TextOp op = UI::TextOpFromStateAndAction(
+                App::app_state->frame_arena,
+                App::app_state->input_box.text,
+                &App::app_state->input_box,
+                &action
+            );
+            
+            B32 taken = TextOpHasEffect(&op, &App::app_state->input_box);
+            if (taken) 
+            {
+
+                UI::ApplyTextOp(
+                    App::app_state->string_arena,
+                    &App::app_state->input_box,
+                    &op
+                );
+                
+
+                OS::EatEvent(App::app_state->events, event);
+            }
+
+            // clay debug
+            if ( IsKeyDown(KEY_LEFT_CONTROL))
+            {
+                if (IsKeyPressed(KEY_D))
+                {
+
+                    debug_enabled = !debug_enabled;
+                    Clay_SetDebugModeEnabled(debug_enabled);
+                }
+            }
+            
+            // TODO(sb): auto scroll is sloppy
+
+            // Clay_ElementId id = Clay_GetElementId(CLAY_STRING("INPUT_BOX"));
+            // Clay_ElementData data = Clay_GetElementData(id);
+            // Clay_BoundingBox bbox = data.boundingBox;
+            // autoscroll_bounds = App::app_state->input_box.scroll_offset_x;
+
+            // EnsureCursorVisible(&App::app_state->input_box, App::app_state->fonts[0], bbox.width);
+
+            // // either autoscroll via cursor, or scroll with
+            // if (autoscroll_bounds != old_autoscroll_bounds)
+            // {
+            //     Clay_UpdateScrollContainers(true, Clay_Vector2{-(App::app_state->input_box.scroll_offset_x), 0}, dt);
+            //     old_autoscroll_bounds = autoscroll_bounds;
+            //     did_autoscroll = true;
+            // }
+            // debug
+            // char debug_buffer[64];
+            // sb_stbsp_snprintf(debug_buffer, sizeof(debug_buffer), "%s%f", "Scroll offset: ", App::app_state->input_box.scroll_offset_x);
+            // OutputDebugStringA(debug_buffer);
+            // OutputDebugStringA("\n");
+            
+
+
+        }
+
 		Clay_SetLayoutDimensions(Clay_Dimensions {(float)GetScreenWidth(), (float)GetScreenHeight() });
 
-		ArenaClear(app_state->frame_arena);
 
 // -------------------------------------------------------------------------------------------------
-		F32 dt = GetFrameTime();
+		
+        Vector2 mousePosition = GetMousePosition();
+        Vector2 scrollDelta = GetMouseWheelMoveV();
 
-		Vector2 mousePosition = GetMousePosition();
-		Vector2 scrollDelta = GetMouseWheelMoveV();
+        F32 scroll_multiplier = 10.0f;
+        scrollDelta.x *= scroll_multiplier;
+        scrollDelta.y *= scroll_multiplier;
 
-		F32 scroll_multiplier = 10.0f;
-		scrollDelta.x *= scroll_multiplier;
-		scrollDelta.y *= scroll_multiplier;
-
-		Clay_SetPointerState(Clay_Vector2{ mousePosition.x, mousePosition.y }, IsMouseButtonDown(0) );
-		Clay_UpdateScrollContainers(true, Clay_Vector2{ scrollDelta.x, scrollDelta.y }, dt );
+        Clay_SetPointerState(Clay_Vector2{ mousePosition.x, mousePosition.y }, IsMouseButtonDown(0) );
+        // if (!did_autoscroll)
+            Clay_UpdateScrollContainers(true, Clay_Vector2{ scrollDelta.x, scrollDelta.y }, dt );
+		
+       
 // -------------------------------------------------------------------------------------------------
 
 
 	    // Compute layout
 	    Clay_BeginLayout();
-	    App_BuildUI();
+	    App::BuildUI();
 		Clay_RenderCommandArray renderCommands = Clay_EndLayout();
 
 		// Render layout
 		BeginDrawing();
 		ClearBackground(BLACK);
-		Clay_Raylib_Render(renderCommands, app_state->fonts);
+		Clay_Raylib_Render(renderCommands, App::app_state->fonts);
+        bool text_input_is_focused = true; // debug, make it work on mouse pointer clicks
+        // render cursor
+        if (text_input_is_focused)
+        {
+            RenderTextCursor(&App::app_state->input_box, App::app_state->fonts);
+        }
 		EndDrawing();
 	}
 	
-	App_Shutdown();
+    ScratchEnd(scratch);
+	App::Shutdown();
 }
 
 // internal void
