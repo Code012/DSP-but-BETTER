@@ -146,7 +146,6 @@ TextOpFromStateAndAction(Arena* arena, String8 string, TextEditState* state, Tex
 
 		S64 new_pos = insert_at + (S64)op.replace_string.size;
 		op.new_cursor = op.new_mark = new_pos;
-		
 	}
 	else if (HasFlag(action->flags, TextActionFlags::Paste))
 	{
@@ -158,6 +157,11 @@ TextOpFromStateAndAction(Arena* arena, String8 string, TextEditState* state, Tex
 	{
 		op.new_mark = op.new_cursor;
 	}
+
+
+	// Don't go over limit
+	op.new_cursor = ClampTop(op.new_cursor, App::app_state->input_box_limit-1);
+	op.new_mark = ClampTop(op.new_mark, App::app_state->input_box_limit-1);
 
 	return op;
 }
@@ -179,7 +183,7 @@ ApplyTextOp(Arena* arena, TextEditState* state, TextOp* op)
     // Invariant: there is always a selection
     // String8 old_text = state->text;
     // S64 new_size = old_text.size - (op->range.max - op->range.min) + op->replace_string.size;
-    // if (new_size < INPUT_TEXT_OFFSET)															// not  tracking grapheme clusters because idk how rn, and this is easier
+    // if (new_size < App::app_state->input_box_limit)															// not  tracking grapheme clusters because idk how rn, and this is easier
 	// {
 	//     if (op->range.min != op->range.max || op->replace_string.size > 0)
 	//     {
@@ -214,7 +218,7 @@ ApplyTextOp(Arena* arena, TextEditState* state, TextOp* op)
     													// Rng1U64{op->replace.min, op->replace.max},
     											// )
     // TODO(sb): clean this code up
-    
+    // Invariant: There is always a selection
     String8 result = zero_struct;
     String8 edit_string = state->text;
 
@@ -224,26 +228,29 @@ ApplyTextOp(Arena* arena, TextEditState* state, TextOp* op)
     range = Rng1U64{range.min, range.max};
     U64 result_size = edit_string.size - Dim1U64(range) + op->replace_string.size;
 
-    result.str = PushArray(scratch.arena, U8, result_size);
-    result.size = edit_string.size;
-    MemoryCopy(result.str, edit_string.str, edit_string.size);
-    
-    String8 before_range = Prefix8(result, range.min);
-    String8 after_range = Str8Skip(result, range.max);
-    edit_string.size = result_size;
+    if (result_size < App::app_state->input_box_limit)	// not tracking grapheme clusters because idk how rn, and this is easier TODO(sb): figure it out if you have time
+	{
+	    result.str = PushArray(scratch.arena, U8, result_size);
+	    result.size = edit_string.size;
+	    MemoryCopy(result.str, edit_string.str, edit_string.size);
+	    
+	    String8 before_range = Prefix8(result, range.min);
+	    String8 after_range = Str8Skip(result, range.max);
+	    edit_string.size = result_size;
 
-    if (before_range.size != 0)
-    {
-    	MemoryCopy(edit_string.str, before_range.str, before_range.size);
-    }
-    if (op->replace_string.size != 0)
-    {
-    	MemoryCopy(edit_string.str + range.min, op->replace_string.str, op->replace_string.size);
-    }
-    if (after_range.size != 0)
-    {
-    	MemoryCopy(edit_string.str + range.min + op->replace_string.size, after_range.str, after_range.size);
-    }
+	    if (before_range.size != 0)
+	    {
+	    	MemoryCopy(edit_string.str, before_range.str, before_range.size);
+	    }
+	    if (op->replace_string.size != 0)
+	    {
+	    	MemoryCopy(edit_string.str + range.min, op->replace_string.str, op->replace_string.size);
+	    }
+	    if (after_range.size != 0)
+	    {
+	    	MemoryCopy(edit_string.str + range.min + op->replace_string.size, after_range.str, after_range.size);
+	    }
+	}
 
     state->text = edit_string;
 

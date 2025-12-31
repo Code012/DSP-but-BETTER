@@ -37,6 +37,7 @@
 #include "ui/ui_inc.cpp"
 
 
+
 B32 TextOpHasEffect(UI::TextOp* op, UI::TextEditState* before);
 B32 TextOpHasEffect(UI::TextOp* op, UI::TextEditState* before)
 {
@@ -78,12 +79,13 @@ EntryPoint(U64 argument_count, char** arguments)
 
         for EachNode(event, OS::Event, first_event)
         {
+            App::app_state->blink_timer = 0.0;  // reset blink timer on input event because blink_timer is cumulative.
 
             // TODO(sb): if (focused) wrap all of text edit code in this
 
             // update text edit widget from keyboard events
             UI::TextAction action = UI::TextActionFromEvent(event);
-            
+
             UI::TextOp op = UI::TextOpFromStateAndAction(
                 App::app_state->frame_arena,
                 App::app_state->input_box.text,

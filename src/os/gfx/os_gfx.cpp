@@ -50,10 +50,11 @@ bool IsModifierKey(Key k)
 
 internal EventList* GetKeyboardEvents(Arena* arena)
 {
+
     EventList* list = PushArray(arena, EventList, 1);
     Modifier mods = GetModifiers();
 
-    // Collect key press events
+    // 1. Collect key press events
     int key = GetKeyPressed();
     while (key != 0)
     {
@@ -73,23 +74,52 @@ internal EventList* GetKeyboardEvents(Arena* arena)
         key = GetKeyPressed();
     }
 
-    // Collect key release events
+    int repeat_keys[] = {
+        KEY_BACKSPACE,
+        KEY_DELETE,
+        KEY_LEFT,
+        KEY_RIGHT
+    };
+
+    // 2. Collect repeat key press events from the repeat_keys list (the ones we want to check for)
+    for (int i = 0; i < ArrayCount(repeat_keys); i++)
+    {
+        key = repeat_keys[i];
+        if (IsKeyPressedRepeat(key))  // this returns true only on frames where the OS generated key-repeat events for that particular key (raylib queues events remmeber)
+        {
+            Key os_key = MapRaylibKey(key);
+            if (os_key != Key::Null && !(IsModifierKey(os_key)))
+            {
+                Event* event = PushArray(arena, Event, 1);
+                event->kind = EventKind::Press;
+                event->key = os_key;
+                event->modifiers = mods;
+                event->codepoint = 0;
+                
+                DLLPushBack(list->first, list->last, event);
+                list->count += 1;
+            }
+        }
+    }
+
+    // 3. Collect key release events
     // int key = GetKeyReleased();
 
-    // Collect text input events
-    int codepoint = GetCharPressed();   // raylib handles Shift+[a-z]
-    while (codepoint != 0 && IsValidCodePoint(codepoint)) // restricted to ascii subset only, see todo.txt for reason (mostly to make my life easier)
+    // 4. Collect text input events
+    key = GetCharPressed();   // raylib handles Shift+[a-z]
+    while (key != 0 && IsValidCodePoint(key)) // restricted to ascii subset only, see todo.txt for reason (mostly to make my life easier)
     {
+        
         Event* event = PushArray(arena, Event, 1);
         event->kind = EventKind::Text;
         event->key = Key::Null;
         event->modifiers = mods;
-        event->codepoint = codepoint;
+        event->codepoint = key;
         
         DLLPushBack(list->first, list->last, event);
         list->count += 1;
         
-        codepoint = GetCharPressed();
+        key = GetCharPressed();
     }
 
     return list;

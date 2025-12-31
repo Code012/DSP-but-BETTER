@@ -37,6 +37,7 @@
 //     }
 // }
 
+
 internal void 
 RenderTextCursor(UI::TextEditState* state, Font* fonts)
 {
@@ -65,10 +66,10 @@ RenderTextCursor(UI::TextEditState* state, Font* fonts)
 
 	Vector2 text_size = MeasureTextEx(font_to_use, temp_buffer, 24.0f, 0.0f);	//TODO(sb): pass the font size and letter spacing as a global variable so its the same
 
-	local_persist F64 blink_timer = 0.0;
-	blink_timer += GetFrameTime();
+	// cursor doesn't blink on input events because blink timer is reset to 0.0 in main event loop
+	App::app_state->blink_timer += GetFrameTime();
 
-	if (fmod(blink_timer, 1.0) < 0.5)
+	if (fmod(App::app_state->blink_timer, 1.0) < 0.5)
 	{
 		F32 cursor_x = bbox.x + text_size.x + scroll_data.scrollPosition->x;
 		DrawRectangle((int)(cursor_x), (int)bbox.y, 2, (int)bbox.height, {0, 0, 0, 255});
@@ -87,10 +88,12 @@ internal void Initialise(Arena* arena)
 	app_state->clay_arena = ArenaAlloc();
 	app_state->string_arena = ArenaAlloc(KiB(64), true);
 	app_state->frame_arena = ArenaAlloc();
+	app_state->input_box_limit = INPUT_TEXT_OFFSET;
 
 	// initialise clay and raylib
+	EnableEventWaiting();
 	Clay_Raylib_Initialize(1024, 768, "Introducing Clay Demo", FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT); // Extra parameters to this function are new since the video was published
-    SetTargetFPS(60);
+    SetTargetFPS(30);
 	Clay_SetMaxMeasureTextCacheWordCount(KiB(64));
 
 	U64 min_memory_size = Clay_MinMemorySize();

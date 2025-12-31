@@ -22,6 +22,8 @@ struct State
 
 	// ui state
 	UI::TextEditState input_box;
+	U64 input_box_limit;
+	F64 blink_timer;		// cumulative blink timer (oscillates from 0-1) that resets on input events
 	// String8 input_box_default // "enter equation";
 
 	// TODO(me): cross-platform solution for paths, in windows msvc can embed into exe, in linux and mac can with #embed or can package into .App or .AppInstaller
