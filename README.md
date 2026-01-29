@@ -4,7 +4,7 @@
 
 This project is not yet complete so there's no binary I can just give to you, however I do estimate this would be complete in about a month and a half. 
 
-If you're curious about what's been done so far and want to have a look around. Here is a list of things notable things done in this project so far:
+If you're curious about what's been done so far and want to have a look around. Here is a list of notable things done in this project so far:
 
 - Code and architecture written to easily target other platforms if needed (see os layer for platform code)
 - Custom base layer for memory, strings, math, os and compiler specific attributes
@@ -26,6 +26,7 @@ Hopefully this gives you an idea of how this project is meant to turn out.
 
 List of "things" for reference when writing project summary also just in general:
 
+<a id="parser"></a>
 1. Parser
 - parser utilises N-read N-write mechanism via a ring buffer that holds 64 tokens. So writes 64-tokens to ring buffer then reads 64-tokens. Advice from NeGate, helps keep data "hot" entirely in L1 cache. After writing 64 tokens, all cache lines for the buffer have been loaded so reading the 64 tokens hit the exact same cache lines that were fetched during writes and will not have been evicted because the working set is tiny. Also a lineary predictable memory access pattern helps. It's better than 1-write 1-read, always better to do it in batches, hence N-write N-read.
 
