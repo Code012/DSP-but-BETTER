@@ -1,9 +1,33 @@
 # DSP-but-BETTER
 
+### Project: "Equation solver with stepped solutions"
+
+This project is not yet complete so there's no binary I can just give to you, however I do estimate this would be complete in about a month and a half. 
+
+If you're curious about what's been done so far and want to have a look around. Here is a list of things notable things done in this project so far:
+
+- Code and architecture written to easily target other platforms if needed (see os layer for platform code)
+- Custom base layer for memory, strings, math, os and compiler specific attributes
+- Custom recursive descent parser written with custom side-channel error and warning system (I go in depth about this [here](#parser))
+- Custom single-line UI text edit widget written from scratch. However missing selection and common hotkeys (for NOW)
+- Using Clay for UI layouting and raylib for windowing and rendering. (don't know how to do either of these things from scratch YET)
+- Built in a single translation unit or a unity build (don't know about the "notable" part here but should mention it)
+
+If you're curious to know how the project will turn out. Here is a list of things to expect:
+
+- Algebra simplification engine written from scratch (engine sounds fancy)
+- Add selection, common hot keys, limit input based on number of codepoints and copy/paste or cut functionality to my single-line text input widget
+- Stepped solutions for solving the equation (which will have all sorts of nice UX, like hovering over a term in a previous step will highlight how that term changed over the next steps and it'll have collapsible buttons to toggle between shorter explanations or longer ones, displayed in a scrollable container aanndd you just have to trust me on this. It will be amazing and fast.)
+- And some other things that don't yet come to mind :).
+
+Hopefully this gives you an idea of how this project is meant to turn out.
+
+---
+
 List of "things" for reference when writing project summary also just in general:
 
 1. Parser
-- parser utilises N-read N-write mechanism via a ring buffer that holds 64 tokens. So writes 64-tokens to ring buffer then reads 64-tokens. Advice from NeGate, helps keep data "hot" entirely in L1 cache. After writing 64 tokens, all cache lines for the buffer have been loaded so reading the 64 tokens hit the exact same cache lines that were fetched during writes and will not have been evicted because the working set is tiny. Also a lineary predictable memory access pattern helps. It's better than 1-write 1-read, alsways better to do it in batches, hence N-write N-read.
+- parser utilises N-read N-write mechanism via a ring buffer that holds 64 tokens. So writes 64-tokens to ring buffer then reads 64-tokens. Advice from NeGate, helps keep data "hot" entirely in L1 cache. After writing 64 tokens, all cache lines for the buffer have been loaded so reading the 64 tokens hit the exact same cache lines that were fetched during writes and will not have been evicted because the working set is tiny. Also a lineary predictable memory access pattern helps. It's better than 1-write 1-read, always better to do it in batches, hence N-write N-read.
 
 - expression tree nodes allocated onto an growable memory pool (arena-backed free list). Currently don't decommit committed memory at all, memory freeing policy is simply push onto freelist. Don't think I need to decommit memory at all, just let the OS reclaim that memory when the program closes. We'll see.
 
@@ -49,4 +73,4 @@ List of "things" for reference when writing project summary also just in general
 ```
 
 
-Code base heavily inspired by Ryan Fleury and Allen Webster.
+Code base heavily inspired by Ryan Fleury and Allen Webster. I owe them a big thanks.
