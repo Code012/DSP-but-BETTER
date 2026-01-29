@@ -173,6 +173,7 @@ struct Node
 	// sb: node info
 	U64 id;
 	NodeKind kind;
+	U64 num_operands;			// useful for nary operands
 
 	// sb: source code info
 	Rng1U64 original;

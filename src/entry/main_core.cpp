@@ -39,8 +39,10 @@
 
 
 internal void 
-RenderTextCursor(UI::TextEditState* state, Font* fonts)
+RenderTextCursor(Arena* arena, UI::TextEditState* state, Font* fonts)
 {
+	ArenaTemp scratch = ScratchBegin(&arena, 1);
+
 	Clay_ElementId id = Clay_GetElementId(CLAY_STRING("INPUT_BOX"));
 	Clay_ScrollContainerData scroll_data = Clay_GetScrollContainerData(id);
 	Clay_ElementData data = Clay_GetElementData(id);
@@ -52,11 +54,13 @@ RenderTextCursor(UI::TextEditState* state, Font* fonts)
 	sb_stbsp_snprintf(debug_buffer, sizeof(debug_buffer), "%s%f", "Scroll offset: ", scroll_data.scrollPosition->x);
     DrawTextEx(font_to_use, debug_buffer, Vector2{0, 0}, 16.0f, 0.0f, Color{0, 0, 0, 255}); 
 
-
 	BeginScissorMode((int)bbox.x, (int)bbox.y, (int)bbox.width+2, (int)bbox.height);
 
-	char temp_buffer[1024];
+	// char temp_buffer[1024*5];
+
 	S64 cursor_pos = (S64)state->cursor;
+
+	char* temp_buffer = PushArray(scratch.arena, char, cursor_pos);
 	// if (cursor_pos > state->text.size)
 	// 	cursor_pos = (S64)state->text.size;
 	ClampTop(cursor_pos, (S64)state->text.size);
@@ -76,6 +80,7 @@ RenderTextCursor(UI::TextEditState* state, Font* fonts)
 	}
 
 	EndScissorMode();
+	ScratchEnd(scratch);
 }
 
 namespace App
@@ -86,26 +91,42 @@ internal void Initialise(Arena* arena)
 	// initialise app state 
 	app_state = PushArray(arena, State, 1);
 	app_state->clay_arena = ArenaAlloc();
-	app_state->string_arena = ArenaAlloc(KiB(64), true);
+	// app_state->string_arena = ArenaAlloc(KiB(64), true);
+	app_state->string_arena = ArenaAlloc(true);
 	app_state->frame_arena = ArenaAlloc();
 	app_state->input_box_limit = INPUT_TEXT_OFFSET;
+	app_state->placeholder_text = Str8Lit("3y = 2(x + 2)");
 
 	// initialise clay and raylib
 	EnableEventWaiting();
 	Clay_Raylib_Initialize(1024, 768, "Introducing Clay Demo", FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT); // Extra parameters to this function are new since the video was published
     SetTargetFPS(30);
-	Clay_SetMaxMeasureTextCacheWordCount(KiB(64));
+	// Clay_SetMaxMeasureTextCacheWordCount(KiB(64));
 
 	U64 min_memory_size = Clay_MinMemorySize();
 	void* clay_mem = PushArrayNoZero(app_state->clay_arena, U8, min_memory_size);
 
 	Clay_Arena clay_memory = Clay_CreateArenaWithCapacityAndMemory(min_memory_size, clay_mem);
 	
+	// loading entire Basic Latin block for Clay debug overlay, otherwise just pass g::codepoints
+	// #if BUILD_DEBUG
+	// constexpr int clay_codepoint_count = 128;
+	// constexpr int app_codepoint_count = ArrayCount(g::codepoints);
+	// int codepoints[clay_codepoint_count + app_codepoint_count]{};
+	// for(int i = 0; i < clay_codepoint_count; i++)
+	// 	codepoints[i] = i;
 
+	// for (int i = 0; i < app_codepoint_count; i++)
+	// 	codepoints[i + 128] = g::codepoints[i];
+	// #endif
 	Clay_Initialize(clay_memory, Clay_Dimensions{(float)GetScreenWidth(), (float)GetScreenHeight()}, Clay_ErrorHandler{HandleClayErrors});
 	// TODO(me): embed textures, look at discord martins
 	//NOTE(sb): giving absoloute path so that radbg can find it
-    app_state->fonts[FONT_ID_BODY_16] = LoadFontEx("D:\\Coding\\dsp-project-refactor\\data\\Roboto-Regular.ttf", 48, 0, 400); 
+	app_state->fonts[FONT_ID_BODY_16] = LoadFontEx("D:\\Coding\\dsp-project-refactor\\data\\Roboto-Regular.ttf", 48, 0, 127); 
+    app_state->fonts[1] = LoadFontEx("D:\\Coding\\dsp-project-refactor\\data\\Roboto-Regular.ttf", 48, g::codepoints, ArrayCount(g::codepoints)); 
+    // app_state->fonts[FONT_ID_BODY_16] = LoadFontEx("D:\\Coding\\dsp-project-refactor\\data\\Roboto-Regular.ttf", 48, codepoints, ArrayCount(codepoints)); 
+	// app_state->fonts[FONT_ID_BODY_16] = LoadFontEx("D:\\Coding\\dsp-project-refactor\\data\\Roboto-Regular.ttf", 48, 0, 127); 
+
     SetTextureFilter(app_state->fonts[FONT_ID_BODY_16].texture, TEXTURE_FILTER_BILINEAR);
     Clay_SetMeasureTextFunction(Raylib_MeasureText, app_state->fonts);
 
@@ -199,7 +220,7 @@ internal void BuildUI()
 				.cornerRadius = {8, 0, 8, 0},
 				.clip = {	
 					.horizontal = true,
-					.childOffset = Clay_GetScrollOffset(), // scroll doesnt work
+					.childOffset = Clay_GetScrollOffset(),
 				},
 				.border = {
 					.color = {217, 218, 223, 255},	// greyish
@@ -209,8 +230,18 @@ internal void BuildUI()
 			//- INPUT_BOX Children
 			{
 // -------------------------------------------------------------------------------------------------
-				CLAY_TEXT(ClayStringFromString8(app_state->input_box.text), CLAY_TEXT_CONFIG({
-                    .textColor = {0, 0, 0, 255},
+				// TODO(sb): add padding to text so it doesnt touch edges, then make sure to compensate for the padding when rendering cursor
+				Clay_String input_buffer = ClayStringFromString8(app_state->placeholder_text);
+				Clay_Color input_colour = {0, 0, 0, 70};//{211, 211, 211, 255};
+
+				if (!App::app_state->need_placeholder)
+				{
+					input_buffer = ClayStringFromString8(app_state->input_box.text);
+					input_colour = {0, 0, 0, 255};
+				}
+
+				CLAY_TEXT(input_buffer, CLAY_TEXT_CONFIG({
+                    .textColor = input_colour,
                     .fontId = FONT_ID_BODY_16,
                     .fontSize = 24,
 	                }));
@@ -253,6 +284,47 @@ internal void BuildUI()
 		};
 		//- INNER_ROOT END
 // -------------------------------------------------------------------------------------------------
+		//- SCROLLBAR START
+		#if 0
+		Clay_ScrollContainerData scroll_data = Clay_GetScrollContainerData(Clay_GetElementId(CLAY_STRING("INPUT_BOX")));
+		// scroll
+		if (scroll_data.found)
+		{
+			Clay_ElementDeclaration d{};
+			d.floating.attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID;
+			d.floating.zIndex = 1;
+			d.floating.parentId = Clay_GetElementId(CLAY_STRING("INPUT_BOX")).id;
+			d.floating.attachPoints.element = CLAY_ATTACH_POINT_LEFT_BOTTOM;
+			d.floating.attachPoints.parent = CLAY_ATTACH_POINT_LEFT_BOTTOM;
+			d.floating.offset = Clay_Vector2{-(scroll_data.scrollPosition->x / scroll_data.contentDimensions.width) * scroll_data.scrollContainerDimensions.width, 0};
+
+			// CLAY(CLAY_ID("SCROLLBAR"), {
+			// 	.floating = {
+			// 		.attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID,
+			// 		.offset = { .y = -(scroll_data.scrollPosition->y / scroll_data.contentDimensions.height) * scroll_data.scrollContainerDimensions.height },
+			// 		.zIndex = 1,
+			// 		.parentId = Clay_GetElementId(CLAY_STRING("INPUT_BOX")).id,
+			// 		.attachPoints = ( .element = CLAY_ATTATCH_POINT_RIGHT_TOP, .parent = CLAY_ATTATCH_POINT_RIGHT_TOP )
+			// 	}
+			// })
+
+			CLAY(CLAY_ID("SCROLLBAR"), d)
+			//- SCROLLBAR Children
+			{
+// -------------------------------------------------------------------------------------------------
+				//- SCROLLBAR_BUTTON START
+				Clay_ElementDeclaration e{};
+				e.layout.sizing = Clay_Sizing{CLAY_SIZING_FIXED((scroll_data.scrollContainerDimensions.height / scroll_data.contentDimensions.height) * scroll_data.scrollContainerDimensions.height), CLAY_SIZING_FIXED(12)};
+				e.backgroundColor = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("SCROLLBAR"))) ? Clay_Color{100, 100, 140, 150} : Clay_Color{120, 120, 160, 150};
+				e.cornerRadius = CLAY_CORNER_RADIUS(6);
+				CLAY(CLAY_ID("SCROLLBAR_BUTTON"), e)
+				{};
+				//- SCROLLBAR_BUTTON END
+// -------------------------------------------------------------------------------------------------
+			};
+// -------------------------------------------------------------------------------------------------
+		}
+		#endif
 	};
 	//- Root End
 // -------------------------------------------------------------------------------------------------

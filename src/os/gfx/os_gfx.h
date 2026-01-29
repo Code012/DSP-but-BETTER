@@ -147,7 +147,8 @@ struct EventList
 
 ////////////////////////////////////////////////////////////////
 //- helpers
-internal B32 IsValidCodePoint(S64 key);
+internal B32 IsValidCodePoint(U32 key);
+internal U32 CanonicalUnicodeSymbolFromAscii(U32 key);
 
 ////////////////////////////////////////////////////////////////
 //- @os_per_backend Events

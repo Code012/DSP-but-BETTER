@@ -207,6 +207,8 @@ ApplyTextOp(Arena* arena, TextEditState* state, TextOp* op)
 	// }
 
 	ArenaTemp scratch = ScratchBegin(0, 0);
+
+	
     // Update cursor and mark
     state->cursor = op->new_cursor;
     state->mark = op->new_mark;

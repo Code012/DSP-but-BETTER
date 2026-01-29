@@ -5,20 +5,42 @@ namespace OS
 
 ////////////////////////////////////////////////////////////////
 //- helpers
-internal B32 IsValidCodePoint(S64 codepoint)
+internal B32 IsValidCodePoint(U32 codepoint)
 {
     B32 is_valid = false;
-    if (codepoint <= 43 && codepoint >= 40)
+    if (codepoint <= 43 && codepoint >= 40)         // (, ), *, +
         is_valid = true;
-    else if (codepoint >= 45 && codepoint <= 57)
+    else if (codepoint >= 45 && codepoint <= 57)    // -, ., /, 0123456789
         is_valid = true;
-    else if (codepoint == 61 || codepoint == 32)
+    else if (codepoint == 61 || codepoint == 32)    // =, SPACE
         is_valid = true;
-    else if (codepoint <= 122 && codepoint >= 97)
+    else if (codepoint <= 122 && codepoint >= 97)   // a-z 
+        is_valid = true;
+    else if (codepoint == 13)                       // CARRIAGE RETURN
         is_valid = true;
 
     return is_valid;
     
+}
+
+internal U32 CanonicalUnicodeSymbolFromAscii(U32 ascii_codepoint)
+{
+    U32 unicode_codepoint = ascii_codepoint;
+
+    switch (ascii_codepoint)
+    {
+        case 42: {                      // asterik
+        unicode_codepoint = 215;        // Muliplication Symbol
+        } break;
+        case 45: {                      // hyphen
+            unicode_codepoint = 8722;   // Subtraction Symbol
+        } break;
+        case 47: {                      // forward slash
+            unicode_codepoint = 247;    // Division Symbol
+        } break;
+    }
+
+    return unicode_codepoint;
 }
 
 internal Modifier GetModifiers(void)
@@ -109,12 +131,15 @@ internal EventList* GetKeyboardEvents(Arena* arena)
     key = GetCharPressed();   // raylib handles Shift+[a-z]
     while (key != 0 && IsValidCodePoint(key)) // restricted to ascii subset only, see todo.txt for reason (mostly to make my life easier)
     {
+
+        U32 unicode_symbol = CanonicalUnicodeSymbolFromAscii(key);
+
         
         Event* event = PushArray(arena, Event, 1);
         event->kind = EventKind::Text;
         event->key = Key::Null;
         event->modifiers = mods;
-        event->codepoint = key;
+        event->codepoint = unicode_symbol;
         
         DLLPushBack(list->first, list->last, event);
         list->count += 1;

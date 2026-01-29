@@ -18,7 +18,7 @@
 # define ARENA_DECOMMIT_THRESHOLD KiB(64)		// reset to 64 MiB for serious projects
 #endif
 
-#define ARENA_HEADER_SIZE sizeof(Arena)
+#define ARENA_HEADER_SIZE sizeof(Arena)			// for when we encode information into the header, sizeof(Arena) for now
 
 ////////////////////////////////
 //~ Arena Allocator Types
@@ -27,7 +27,8 @@ struct Arena
 {
 	U64 pos;
 	U64 commit_pos;
-	U64 size;		// reservation size
+
+	U64 reserve_size;
 };
 StaticAssert(sizeof(Arena) <= ARENA_HEADER_SIZE, arena_header_size_check);
 
@@ -58,7 +59,7 @@ internal void ArenaPop(Arena *arena, U64 amt);
 // temporary arena scopes
 // TODO: (sb) See if RAII proves to be more convenient
 internal ArenaTemp ArenaTempBegin(Arena *arena);	
-internal void 	   ArenaTempEnd(ArenaTemp *temp);
+internal void 	   ArenaTempEnd(ArenaTemp temp);
 
 internal ArenaTemp ArenaGetScratch(Arena **conflict_array, U32 count);
 

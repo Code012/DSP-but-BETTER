@@ -51,6 +51,7 @@ Parser::Parser(Arena* arena, String8 src)
 {
 	// initialise ring buffer
 	tokens_rb.tokens.v = PushArray(arena, Token, 64); // ring buffer holds 64 tokens
+	tokens_rb.tokens.count = 64;
 	// set current and peek token
 	NextToken(this);
 }
@@ -305,6 +306,7 @@ ParseNumeric(Parser* parser)
 	result->number = value;
 	result->id = global_node_id++;
 	result->kind = NodeKind::Number;
+	result->num_operands = 0;
 	result->original = num_range;
 	result->modified = result->original;
 	
@@ -330,6 +332,7 @@ ParseVariable(Parser* parser)
 	result->name = var_name;
 	result->id = global_node_id++;
 	result->kind = NodeKind::Variable;
+	result->num_operands = 0;
 	result->original = var_range;
 	result->modified = result->original;
 
@@ -353,6 +356,7 @@ ParseUnary(Parser* p)
 	result->kind = NodeKind::UnaryOp;
 	result->un_ops = is_negative ? UnOpKind::Negate: UnOpKind::Positive;
 	result->id = global_node_id++;
+	result->num_operands = 1;
 	
 	result->unary_child = ParseExpression(p, Precedence::UNARY);
 	
@@ -381,6 +385,8 @@ internal Node*
 ParseInfixExpression(Parser* parser, Node* left)
 {
 	Node* result = NodeAlloc(&parser->node_pool);
+
+	result->num_operands = 2;
 
 	switch (parser->current_token.kind)
 	{

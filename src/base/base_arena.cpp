@@ -12,8 +12,6 @@
 #endif
 
 
-
-
 ////////////////////////////////
 // Arena Functions
 
@@ -22,7 +20,7 @@ internal Arena *
 ArenaAlloc(U64 size, B32 ignore_reserve_granularity)
 {
 	U64 reserve_size_roundup_granularity;
-	if (!ignore_reserve_granularity)
+	if (!ignore_reserve_granularity)	// do reserve granularity
 	{
 		U64 reserve_size_roundup_granularity = MiB(64);
 		size += reserve_size_roundup_granularity-1;
@@ -36,7 +34,7 @@ ArenaAlloc(U64 size, B32 ignore_reserve_granularity)
 	Arena *arena = (Arena *)block;
 	arena->pos = ARENA_HEADER_SIZE;
 	arena->commit_pos = initial_commit_size;
-	arena->size = size;
+	arena->reserve_size = size;
 
 	return arena;
 }
@@ -44,7 +42,7 @@ ArenaAlloc(U64 size, B32 ignore_reserve_granularity)
 internal void 
 ArenaRelease(Arena **arena)
 {
-	ArenaImpl_Release(*arena, (*arena)->size);
+	ArenaImpl_Release(*arena, (*arena)->reserve_size);
 	*arena = nullptr;
 }
 
@@ -53,7 +51,7 @@ internal void *
 ArenaPush(Arena *arena, U64 size, U64 align, B32 zero)
 {
 	void *result = nullptr;
-	if (arena->pos + size <= arena->size)
+	if (arena->pos + size <= arena->reserve_size)
 	{
 		U8 *base = (U8 *)arena;
 

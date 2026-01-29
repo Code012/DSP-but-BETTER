@@ -87,6 +87,7 @@ internal U64 CString8Length(U8 *cstr);
 
 #define Str8Lit(S) Str8((U8*)(S), sizeof(S) - 1)
 #define Str8Varg(S) (int)((S).size), ((S).str)     // for variadic functions where the format specifier is "%.*s" meaning an int value (width) is provided before the char string.
+#define Str8LitComp(s) {(U8 *)(s), sizeof(s)-1}    // for defining in arrays
 
 #define Str8Array(S,C) Str8((U8*)(S), sizeof(*(S)*(C)))
 #define Str8ArrayFixed(S,C) Str8((U8*)(S), sizeof(S))
