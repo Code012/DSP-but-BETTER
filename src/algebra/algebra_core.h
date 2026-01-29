@@ -28,9 +28,9 @@ namespace algebra
 		Nil 		= (1u << 0),
 		Integer 	= (1u << 1),
 		Symbol 		= (1u << 2),
-		FracOp		= (1u << 3),		// define these terms
-		PowUp		= (1u << 4),
-		ProdUp		= (1u << 5),
+		FracOp		= (1u << 3),		// define these terms (BinaryOp)
+		PowUp		= (1u << 4),		// (UnaryOp)
+		ProdUp		= (1u << 5),		// 
 		SumOp		= (1u << 6),
 		QuotOp		= (1u << 7),
 		DiffOp		= (1u << 8),
@@ -70,7 +70,7 @@ namespace algebra
 
 	///////////////////////////////
 	//- Algebraic Simplification 
-	Node* AutomaticSimplify(Node* u);
+	Node* AutomaticSimplify(Node* u, Kind flags);
 
 } // namespace algebra
 #endif // ALGEBRA_CORE_H

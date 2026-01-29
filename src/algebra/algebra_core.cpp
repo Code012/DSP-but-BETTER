@@ -4,12 +4,13 @@
 
 namespace algebra {
 
-global Node* v;
-
 ///////////////////////////////
 //- Algebraic Simplification 
 Node* AutomaticSimplify(Node* u, Kind flags)
 {
+
+	Kind operand_flags{};
+
 	if (HasFlag<Kind>(flags, Kind::Integer) || HasFlag<Kind>(flags, Kind::Symbol))		// leaves
 	{
 		return u;
@@ -20,22 +21,27 @@ Node* AutomaticSimplify(Node* u, Kind flags)
 	}
 	else
 	{
-		// Simplify each operand in post-order (children first)
+		// Simplify each operand in depth-first post-order recursively (children first)
 		switch (u->kind)
 		{
 			case parse::NodeKind::UnaryOp:
 			{
-				u->unary_child = AutomaticSimplify(u->unary_child);		// my dudes don't freak out at the lack of nullptr checks, I'm trying something out trust (https://www.rfleury.com/p/the-easiest-way-to-handle-errors)
+				operand_flags = DetermineOperandFlags(u->unary_child);
+				u->unary_child = AutomaticSimplify(u->unary_child, operand_flags);		// my dudes don't freak out at the lack of nullptr checks, I'm trying something out trust (https://www.rfleury.com/p/the-easiest-way-to-handle-errors)
 			} 
 			case parse::NodeKind::BinaryOp: 
 			{
-				u->left = AutomaticSimplify(u->left);
-				u->right = AutomaticSimplify(u->right);
+				operand_flags = DetermineOperandFlags(u->left);
+				u->left = AutomaticSimplify(u->left, operand_flags);
+
+				operand_flags = DetermineOperandFlags(u->right);
+				u->right = AutomaticSimplify(u->right, operand_flags);
 			}
 			case parse::NodeKind::NaryOp:
 			{
 				for(S64 i = 0; i < u->num_operands; i++)
 				{
+					operand_flags = DetermineOperandFlags(u->nary_next); 
 					u->nary_next = AutomaticSimplify(u->nary_next);
 				}
 			} 
