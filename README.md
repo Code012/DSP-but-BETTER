@@ -7,17 +7,17 @@ This project is not yet complete so there's no binary I can just give to you, ho
 If you're curious about what's been done so far and want to have a look around. Here is a list of notable things done in this project so far:
 
 - Code and architecture written to easily target other platforms if needed (see os layer for platform code)
-- Custom base layer for memory, strings, math, os and compiler specific attributes
-- Custom recursive descent parser written with custom side-channel error and warning system (I go in depth about this [here](#parser))
+- Custom base layer for memory, length-based strings, math, os and compiler specific attributes
+- Custom recursive descent parser written with custom side-channel warning and error reporting system (I go in depth about this [here](#parser))
 - Custom single-line UI text edit widget written from scratch. However missing selection and common hotkeys (for NOW)
 - Using Clay for UI layouting and raylib for windowing and rendering. (don't know how to do either of these things from scratch YET)
-- Built in a single translation unit or a unity build (don't know about the "notable" part here but should mention it)
+- Built in a single translation unit or a unity build with layered dependencies forming a DAG.
 
 If you're curious to know how the project will turn out. Here is a list of things to expect:
 
 - Algebra simplification engine written from scratch (engine sounds fancy)
 - Add selection, common hot keys, limit input based on number of codepoints and copy/paste or cut functionality to my single-line text input widget
-- Stepped solutions for solving the equation (which will have all sorts of nice UX, like hovering over a term in a previous step will highlight how that term changed over the next steps and it'll have collapsible buttons to toggle between shorter explanations or longer ones, displayed in a scrollable container aanndd you just have to trust me on this. It will be amazing and fast.)
+- Stepped solutions for solving the equation (which will have all sorts of nice UX, like hovering over a term in a previous step will highlight how that term changed over the next steps and it'll have collapsible buttons to toggle between shorter explanations or longer ones, displayed in a scrollable container etc etc. It will look amazing and be very performant.)
 - And some other things that don't yet come to mind :).
 
 Hopefully this gives you an idea of how this project is meant to turn out.
