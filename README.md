@@ -12,6 +12,7 @@ If you're curious about what's been done so far and want to have a look around. 
 - Custom single-line UI text edit widget written from scratch. However missing selection and common hotkeys (for NOW)
 - Using Clay for UI layouting and raylib for windowing and rendering. (don't know how to do either of these things from scratch YET)
 - Built in a single translation unit or a unity build with layered dependencies forming a DAG.
+- Programming w.r.t. memory and hardware. Using an arena-backed freelist to store and recycle expression tree nodes as I modify them in my simplification engine. Make extensive use of arenas for contiguous allocations, leveraging a pre-reserved virtual memory region and commiting pages on demand for extremely cheap allocations.
 
 If you're curious to know how the project will turn out. Here is a list of things to expect:
 
