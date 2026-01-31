@@ -37,6 +37,25 @@
 //     }
 // }
 
+internal inline Clay_Dimensions My_MeasureText(Clay_StringSlice text, Clay_TextElementConfig *config, void *userData) {
+	ArenaTemp scratch = ScratchBegin(0, 0);
+    U16 font_size = config->fontSize;
+    if (font_size == 0)
+    {
+        font_size = 16; // default font size
+    }
+
+    // Font font = LoadFontEx(config->fontId, (int)font_size);
+    char* str = PushArray(scratch.arena, char, text.length+1);
+    MemoryCopy((void *)str, text.chars, text.length);
+    str[text.length] = 0;
+
+    Vector2 dims = MeasureTextEx(App::app_state->fonts[0], str, font_size, config->letterSpacing);
+
+    ScratchEnd(scratch);
+
+    return Clay_Dimensions{(float)dims.x, (float)dims.y};
+}
 
 internal void 
 RenderTextCursor(Arena* arena, UI::TextEditState* state, Font* fonts)
@@ -109,26 +128,21 @@ internal void Initialise(Arena* arena)
 	Clay_Arena clay_memory = Clay_CreateArenaWithCapacityAndMemory(min_memory_size, clay_mem);
 	
 	// loading entire Basic Latin block for Clay debug overlay, otherwise just pass g::codepoints
-	// #if BUILD_DEBUG
-	// constexpr int clay_codepoint_count = 128;
-	// constexpr int app_codepoint_count = ArrayCount(g::codepoints);
-	// int codepoints[clay_codepoint_count + app_codepoint_count]{};
-	// for(int i = 0; i < clay_codepoint_count; i++)
-	// 	codepoints[i] = i;
+	constexpr int clay_codepoint_count = 128;
+	constexpr int app_codepoint_count = ArrayCount(g::codepoints);
+	int codepoints[clay_codepoint_count + app_codepoint_count]{};
+	for(int i = 0; i < clay_codepoint_count; i++)
+		codepoints[i] = i;
 
-	// for (int i = 0; i < app_codepoint_count; i++)
-	// 	codepoints[i + 128] = g::codepoints[i];
-	// #endif
+	for (int i = 0; i < app_codepoint_count; i++)
+		codepoints[i + 128] = g::codepoints[i];
 	Clay_Initialize(clay_memory, Clay_Dimensions{(float)GetScreenWidth(), (float)GetScreenHeight()}, Clay_ErrorHandler{HandleClayErrors});
 	// TODO(me): embed textures, look at discord martins
 	//NOTE(sb): giving absoloute path so that radbg can find it
-	app_state->fonts[FONT_ID_BODY_16] = LoadFontEx("D:\\Coding\\dsp-project-refactor\\data\\Roboto-Regular.ttf", 48, 0, 127); 
-    app_state->fonts[1] = LoadFontEx("D:\\Coding\\dsp-project-refactor\\data\\Roboto-Regular.ttf", 48, g::codepoints, ArrayCount(g::codepoints)); 
-    // app_state->fonts[FONT_ID_BODY_16] = LoadFontEx("D:\\Coding\\dsp-project-refactor\\data\\Roboto-Regular.ttf", 48, codepoints, ArrayCount(codepoints)); 
-	// app_state->fonts[FONT_ID_BODY_16] = LoadFontEx("D:\\Coding\\dsp-project-refactor\\data\\Roboto-Regular.ttf", 48, 0, 127); 
+    app_state->fonts[FONT_ID_BODY_16] = LoadFontEx("D:\\Coding\\dsp-project-refactor\\data\\Roboto-Regular.ttf", 48, codepoints, ArrayCount(codepoints)); 
 
     SetTextureFilter(app_state->fonts[FONT_ID_BODY_16].texture, TEXTURE_FILTER_BILINEAR);
-    Clay_SetMeasureTextFunction(Raylib_MeasureText, app_state->fonts);
+    Clay_SetMeasureTextFunction(My_MeasureText, app_state->fonts);
 
     // debug tools
     Clay_SetDebugModeEnabled(true);
@@ -139,6 +153,7 @@ internal void Initialise(Arena* arena)
     app_state->input_box.cursor = 0;
     app_state->input_box.mark = 0;
     app_state->input_box.scroll_offset_x = 0.0f;
+
 }
 
 internal void BuildUI()
