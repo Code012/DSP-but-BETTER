@@ -35,6 +35,8 @@ List of "things" for reference when writing project summary also just in general
 
 - parser uses a side-channel error and warning system so all the errors can be caught and displayed. Warnings won't stop the program but errors will. errors logged onto its own dedicated arena.
 
+- lexer can tokenise UTF-8 encoded strings, as the smallest unit it operates on are codepoints. This allows me to parse fancy mathematical operators like so:  − × ÷ ∫ 𝑥 𝑠𝑖𝑛() (if these symbols appear as �, it means the software or font you're using doesn't support those Unicode code points or lacks the required glyphs)
+
 
 ---
 
