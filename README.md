@@ -8,7 +8,7 @@ If you're curious about what's been done so far and want to have a look around. 
 
 - Code and architecture written to easily target other platforms if needed (see os layer for platform code)
 - Custom base layer for memory, length-based strings, math, os and compiler specific attributes
-- Custom recursive descent parser written with custom side-channel warning and error reporting system (I go in depth about this [here](#parser))
+- Custom expression parser with full UTF-8 support via codepoint-based tokenisation and custom side-channel warning and error reporting system (I go in depth about this [here](#parser))
 - Custom single-line UI text edit widget written from scratch. However missing selection and common hotkeys (for NOW)
 - Using Clay for UI layouting and raylib for windowing and rendering. (don't know how to do either of these things from scratch YET)
 - Built in a single translation unit or a unity build with layered dependencies forming a DAG.
