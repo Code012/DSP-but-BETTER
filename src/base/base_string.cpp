@@ -359,3 +359,61 @@ internal UnicodeDecode UTF8Decode(U8* str, U64 buffer_size)
 
 	return result;
 }
+
+internal U32 
+UTF8Encode(U8* str, U32 codepoint)
+{
+	U32 inc = 0;
+	if (codepoint <= 0x7f) // 127
+	{
+		str[0] = (U8)codepoint;
+		inc = 1;
+	}
+	else if (codepoint <= 0x7ff)	// 2047
+	{
+		// codepoint = xxxxx | yyyyyy (11 bits)
+		str[0] = (bitmask2 << 6) | ((codepoint >> 6) & bitmask5);	// First byte 110xxxxx	
+		str[1] = (bit8) | (codepoint & bitmask6);					// Second byte 10yyyyyy
+		inc = 2;
+	}
+	else if (codepoint <= 0Xffff) // 65535
+	{
+		// codepoint = xxxx | yyyyyy | zzzzzz (16 bits)
+		str[0] = (bitmask3 << 5) | ((codepoint >> 12) & bitmask4);	// First byte 1110xxxx
+		str[1] = (bit8) | ((codepoint >> 6) & bitmask6);			// Second byte 10yyyyyy
+		str[2] = (bit8) | (codepoint & bitmask6);					// Third byte 10zzzzzz
+		inc = 3;
+	}
+	else if (codepoint <= 0x10FFFF) // 1114111
+	{
+		// codepoint = xxxyyyyyyzzzzzzwwwwww(21 bits)
+		// encoding = 11110xxx 10yyyyyy 10zzzzzz 10wwwwww
+		str[0] = (bitmask4 << 4) | ((codepoint >> 18) & bitmask3);
+		str[1] = (bit8) | ((codepoint >> 12) & bitmask6);
+		str[2] = (bit8) | ((codepoint >> 6) & bitmask6);
+		str[3] = (bit8) | (codepoint & bitmask6);
+		inc = 4;
+	}
+	else
+	{
+		str[0] = '?';
+		inc = 1;
+	}
+	return inc;
+}
+
+internal String8 
+PushString8FromCodepoint(Arena* arena, U32 codepoint)
+{
+	U8 temp[4];
+	U32 inc = UTF8Encode(temp, codepoint);
+
+	U8* mem = PushArray(arena, U8, inc);
+	MemoryCopy(mem, temp, inc);
+
+	String8 str;
+	str.str = mem;
+	str.size = inc;
+
+	return str;
+}

@@ -131,10 +131,16 @@ EntryPoint(U64 argument_count, char** arguments)
         if (submit)
         {
             parse::Parser parser{scratch.arena, App::app_state->input_box.text};   
-            parse::ParseResult result = parse::ParseFromText(scratch.arena, &parser, App::app_state->input_box.text);
+            parse::ParseResult result = parse::ParseFromText(&parser, App::app_state->input_box.text);
+            parse::DebugPrintParseResult(result, App::app_state->input_box.text);
+        
             if (parser.msgs.count > 0)
             {
                 // TODO(sb): Display errors and warnings in ui
+                for EachNode(msg, parse::Msg, parser.msgs.first)
+                {
+                    PrintRed((U32)msg->string.size, msg->string.str);
+                }
             }
 
             // Algebra::Result holds Node* root, and linked list to steps

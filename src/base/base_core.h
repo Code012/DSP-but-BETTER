@@ -109,10 +109,13 @@ read_only global S64 S64Min = -1 - 0x7FFFFFFFFFFFFFFF;
 
 // bitmasks least significant bits
 read_only global U32 bitmask1 = 0x00000001;
+read_only global U32 bitmask2 = 0x00000003;
 read_only global U32 bitmask3 = 0x00000007;
 read_only global U32 bitmask4 = 0x0000000f;
 read_only global U32 bitmask5 = 0x0000001f;
 read_only global U32 bitmask6 = 0x0000003f;
+
+read_only global U32 bit8 = (1<<7);
 
 ////////////////////////////////
 // Toolchain/Environment Enums
