@@ -53,6 +53,9 @@ struct MsgList
 	MsgKind worst_message_kind;
 };
 
+
+
+
 ////////////////////////////////
 //- Token Types
 
@@ -95,11 +98,10 @@ struct TokenArray
 	const Token& operator[](U64 i) const;
 };
 
-struct TokenRingBuffer
+struct TokenPrefetchBuffer
 {
 	TokenArray tokens;
-	U64 head;
-	U64 tail;
+	U64 current_index;
 };
 
 /////////////////////////////////
@@ -138,7 +140,7 @@ enum class NodeKind : U32
 	Variable,		// Leaf: identifier
 	NaryOp,	        // Internal: *, +
 	BinaryOp,		// Internal: -, /, FRACTION, ^
-	UnaryOp,		// Internal: -{expression}, +{expression}
+	UnaryOp,		// Internal: -{expression}
 	FunctionCall,	// Internal: sin(x), sqrt(x)
 	ErrorMarker,	// not sure if i need this, but experimenting
 	COUNT,
@@ -180,8 +182,6 @@ struct Node
 	Rng1U64 modified;
 
 };
-
-// TODO(sb): make free list link less intrustive struct NodePoolNode
 
 struct NodePool
 {
@@ -230,8 +230,10 @@ struct Parser
 
 	Lexer lexer;
 
+	CodepointPrefetchBuffer codepoints;
+
 	// tokens
-	TokenRingBuffer tokens_rb;
+	TokenPrefetchBuffer token_cache;
 	Token current_token;
 	Token peek_token;
 
@@ -304,7 +306,9 @@ internal constexpr Precedence PrecedenceFromKind(TokenKind tk);
 internal constexpr Precedence CurrentPrecedence(Parser* parser);
 internal constexpr Precedence PeekPrecedence(Parser* parser);
 
-internal void RefillRingBuffer(Parser* p);
+
+
+internal void RefillTokenPrefetchBuffer(Parser* p);
 internal void NextToken(Parser* parser);
 
 /////////////////////////////////

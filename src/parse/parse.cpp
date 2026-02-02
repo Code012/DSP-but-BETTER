@@ -2,6 +2,7 @@
 
 
 #define TOKEN_BUF_SIZE 64
+#define CODEPOINT_BUF_SIZE 64
 
 namespace parse 
 { 
@@ -44,14 +45,14 @@ Lexer::Lexer(String8 src)
 Parser::Parser(Arena* arena, String8 src)
 	: node_pool{}
 	, lexer{src}
-	, tokens_rb{}
+	, token_cache{}
 	, current_token{}
 	, peek_token{}
 	, msgs{}
 {
 	// initialise ring buffer
-	tokens_rb.tokens.v = PushArray(arena, Token, 64); // ring buffer holds 64 tokens
-	tokens_rb.tokens.count = 64;
+	token_cache.tokens.v = PushArray(arena, Token, 64); // ring buffer holds 64 tokens
+	token_cache.tokens.count = 64;
 	// set current and peek token
 	NextToken(this);
 }
@@ -421,7 +422,8 @@ ParseInfixExpression(Parser* parser, Node* left)
 			result->bin_left = left;
 			result->bin_right = ParseExpression(parser, curr_prec); // current precedence = left binding power
 		} break;
-		// at the parsing stage nary op behaves like binary op
+		// At the parsing stage nary op behaves like binary op, the tree structure will be flattened for like-nary op nodes
+		// For e.g. if a + node has a + node as a child, the child + will be removed and its operands will become the parent + node's operands
 		case NodeKind::NaryOp:
 		{
 			Precedence curr_prec = CurrentPrecedence(parser);
@@ -468,21 +470,23 @@ PeekPrecedence(Parser* parser)
 	return PrecedenceFromKind(parser->peek_token.kind);
 }
 
-internal void 
-RefillRingBuffer(Parser* p)
-{
-	TokenRingBuffer* ring_buf = &(p->tokens_rb);
 
-	ring_buf->head = 0;
-	ring_buf->tail = 0;
+
+
+internal void 
+RefillTokenPrefetchBuffer(Parser* p)
+{
+	TokenPrefetchBuffer* token_cache = &(p->token_cache);
+
+	token_cache->current_index = token_cache->opl_index = 0;
 
 	// populate
 	for (U32 i = 0; i < TOKEN_BUF_SIZE; i++)
 	{
-		ring_buf->tokens[i] = NextTokenFromText(p->lexer.src.str, p->lexer.src.str + p->lexer.src.size, p->lexer.cursor);
+		token_cache->tokens[i] = NextTokenFromText(p->lexer.src.str, p->lexer.src.str + p->lexer.src.size, p->lexer.cursor);
+		if ((token_cache->tokens[i].kind == TokenKind::EndOfInput))
+			break;
 	}
-
-	ring_buf->tail = TOKEN_BUF_SIZE;
 }
 
 internal void 
@@ -490,25 +494,17 @@ NextToken(Parser* parser)
 {
 	if (parser->peek_token.kind != TokenKind::EndOfInput)
 	{
-		TokenRingBuffer* ring_buf = &(parser->tokens_rb);
+		TokenPrefetchBuffer* token_cache = &(parser->token_cache);
 
 		// refill if all 64 tokens consumed
-		if (ring_buf->head == ring_buf->tail)
-		{
-			RefillRingBuffer(parser);
-		}
+		if ((token_cache->current_index == 0) || (token_cache->current_index == TOKEN_BUF_SIZE))
+			RefillTokenPrefetchBuffer(parser);
 
 		// consume current
-		parser->current_token = ring_buf->tokens[ring_buf->head]; 
-		ring_buf->head++;
+		parser->current_token = token_cache->tokens[token_cache->current_index]; 
+		token_cache->current_index++;
 
-		// ensure peek is valid
-		if (ring_buf->head == ring_buf->tail)
-		{
-			RefillRingBuffer(parser);
-		}
-
-		parser->peek_token = ring_buf->tokens[ring_buf->head];
+		parser->peek_token = token_cache->tokens[token_cache->current_index];
 	}
 }
 
