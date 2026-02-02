@@ -302,7 +302,7 @@ internal Token NextTokenFromText(U8* byte_first, U8* one_past_last, U8*& cursor)
 ////////////////////////////////
 //- sb: Text -> Tree Functions
 
-internal ParseResult ParseFromText(Arena* arena, Parser* parser, String8 string);
+internal ParseResult ParseFromText(Parser* parser, String8 string);
 
 internal Node* ParseExpression(Parser* parser, Precedence precedence);
 

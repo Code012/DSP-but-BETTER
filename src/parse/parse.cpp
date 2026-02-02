@@ -331,9 +331,8 @@ global constexpr Precedence precedence_lookup[static_cast<U64>(TokenKind::MAX)] 
 };
 
 internal ParseResult 
-ParseFromText(Arena* arena, Parser* parser, String8 string)
+ParseFromText(Parser* parser, String8 string)
 {
-	ArenaTemp scratch = ScratchBegin(&arena, 1);
 	MsgList msgs = zero_struct;
 
 	Node* expr = ParseExpression(parser, Precedence::MIN);
@@ -342,7 +341,6 @@ ParseFromText(Arena* arena, Parser* parser, String8 string)
 	// if (parser->current_token.kind != TokenKind::EndOfInput)
 
 	ParseResult result = {expr, msgs};
-	ScratchEnd(scratch);
 	return result;
 }
 
@@ -421,7 +419,13 @@ ParseNumeric(Parser* parser)
 	
 	String8 lexeme = Str8Range(src_start, src_opl);
 	
-	F64 value = strtod((const char*)lexeme.str, nullptr);
+	char* buf = new char[lexeme.size];	// not tryna propagate a scratch all the way down here man
+	MemoryCopy(buf, lexeme.str, lexeme.size);
+	buf[lexeme.size] = 0;
+
+	F64 value = strtod((const char*)buf, nullptr);
+	delete[] buf;
+
 	Rng1U64 num_range = parser->current_token.range;
 	// NextToken(parser);
 
@@ -661,6 +665,10 @@ NextToken(Parser* parser)
 		token_cache->current_index++;
 
 		parser->peek_token = token_cache->tokens[token_cache->current_index];
+	}
+	else
+	{
+		parser->current_token = parser->peek_token;
 	}
 }
 
