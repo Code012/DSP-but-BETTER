@@ -53,7 +53,21 @@ struct MsgList
 	MsgKind worst_message_kind;
 };
 
+#if 0
+////////////////////////////////
+//- Something something
 
+struct CodepointPrefetchBuffer
+{
+	UnicodeDecode* decoded_codepoints;
+	U64 current_index;
+	U64 count;
+
+	// with bounds checks as it should be
+	UnicodeDecode& operator[](U64 i);
+	const UnicodeDecode& operator[](U64 i) const;
+};
+#endif
 
 
 ////////////////////////////////
@@ -64,9 +78,9 @@ enum class TokenKind : U32
 	// sb: base kind info
 	Nil           = 0,
     Plus,
-    Minus,
-    Star,
-    Slash,
+    MinusSign,//Hyphen,
+    MultiplicationSign,//Star,
+    DivisionSign,///Slash,
     ImplicitMult,
     Numeric,
     Variable,
@@ -230,7 +244,7 @@ struct Parser
 
 	Lexer lexer;
 
-	CodepointPrefetchBuffer codepoints;
+	// CodepointPrefetchBuffer codepoint_cache;
 
 	// tokens
 	TokenPrefetchBuffer token_cache;
@@ -282,6 +296,7 @@ internal void NodeRelease(NodePool* node_pool, Node* node);
 ////////////////////////////////
 //- sb: Text -> Tokens Functions
 
+// internal UnicodeDecode NextCodepointFromText(U8* byte_first, U8* one_past_last, U8*& cursor);
 internal Token NextTokenFromText(U8* byte_first, U8* one_past_last, U8*& cursor);
 
 ////////////////////////////////
@@ -306,7 +321,8 @@ internal constexpr Precedence PrecedenceFromKind(TokenKind tk);
 internal constexpr Precedence CurrentPrecedence(Parser* parser);
 internal constexpr Precedence PeekPrecedence(Parser* parser);
 
-
+// internal void RefillCodepointPrefetchBuffer(Parser* p);
+// internal void NextCodepoint(Parser* p);
 
 internal void RefillTokenPrefetchBuffer(Parser* p);
 internal void NextToken(Parser* parser);

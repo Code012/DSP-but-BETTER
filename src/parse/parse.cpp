@@ -9,6 +9,25 @@ namespace parse
 
 global U64 global_node_id = 1;
 
+
+#if 0
+////////////////////////////////
+//- Something something
+
+UnicodeDecode& 
+CodepointPrefetchBuffer::operator[](U64 i)
+{
+	Assert(i < count);
+	return decoded_codepoints[i];
+}
+const UnicodeDecode& 
+CodepointPrefetchBuffer::operator[](U64 i) const
+{
+	Assert(i < count);
+	return decoded_codepoints[i];
+}
+#endif
+
 ////////////////////////////////
 //- Token Types
 
@@ -116,7 +135,112 @@ internal void NodeRelease(NodePool* node_pool, Node* node)
 
 ////////////////////////////////
 //- sb: Text -> Tokens Functions
+internal Token
+NextTokenFromText(U8* byte_first, U8* one_past_last, U8*& cursor)
+{
+	TokenKind kind{};
+	UnicodeDecode decoded{};
+	U8* token_start = cursor;
+	U8* token_opl = cursor;
 
+	if (cursor < one_past_last)
+	{
+		// whitespace
+		decoded = UTF8Decode(cursor, one_past_last - cursor);
+		while (cursor < one_past_last && (CodepointIsSpace(decoded.codepoint)))
+		{
+			cursor += decoded.inc;
+			decoded = UTF8Decode(cursor, one_past_last - cursor);	// current byte, bytes remaining
+		}
+		token_start = token_opl = cursor;
+
+		switch (decoded.codepoint)
+		{	
+			// single character tokens
+			case '+':
+			{
+				kind = TokenKind::Plus; 
+				cursor += decoded.inc; 
+			} break;
+			case '(': 
+			{
+				kind = TokenKind::OpenParen; 
+				cursor += decoded.inc;
+			} break;
+			case ')': 
+			{ 
+				kind = TokenKind::CloseParen; 
+				cursor += decoded.inc;		
+			} break;
+			// Multiplication sign, Latin-1 Supplement
+			case 215:		
+			{
+				kind = TokenKind::MultiplicationSign;
+				cursor += decoded.inc;
+			} break;
+			// Division Sign, Latin-1 Supplement
+			case 247: 		
+			{
+				kind = TokenKind::DivisionSign;
+				cursor += decoded.inc;
+			} break;
+			// Minus Sign, Mathematical Operators
+			case 8722: 		
+			{
+				kind = TokenKind::MinusSign;
+				cursor += decoded.inc;
+			} break;
+			default:
+			{
+				// multi-character tokens
+				// numerics
+				if (CodepointIsDigit(decoded.codepoint))
+				{
+					kind = TokenKind::Numeric;
+					while (cursor < one_past_last && ((CodepointIsDigit(decoded.codepoint) || decoded.codepoint == '.')))
+					{
+						cursor += decoded.inc;
+						decoded = UTF8Decode(cursor, one_past_last - cursor);
+					}
+					token_opl = cursor;
+				}
+
+				// variables
+				else if (CodepointIsAlpha(decoded.codepoint))
+				{
+					kind = TokenKind::Variable;
+					while (cursor < one_past_last && (CodepointIsAlpha(decoded.codepoint)))
+					{
+						cursor += decoded.inc;
+						decoded = UTF8Decode(cursor, one_past_last - cursor);
+					}
+					token_opl = cursor;
+				}
+			}	// default:
+			break;
+		} // switch (decoded.codepoint)
+
+		token_opl = cursor;		// for single character tokens
+
+		// check bad character
+		if (kind == TokenKind::Nil && token_opl <= token_start)
+		{
+			kind = TokenKind::BadCharacter;
+		}
+	} // if (cursor < one_past_last)
+	else
+	{
+		kind = TokenKind::EndOfInput;
+	}
+
+	U64 min = static_cast<U64>(token_start - byte_first); // ptrdiff_t -> U64 (signed to unsigned)
+	U64 max = static_cast<U64>(token_opl - byte_first);
+	Rng1U64 range = {min, max};
+
+	return Token{range, kind};
+}
+
+#if 0
 internal Token 
 NextTokenFromText(U8* byte_first, U8* one_past_last, U8*& cursor)
 {
@@ -127,7 +251,6 @@ NextTokenFromText(U8* byte_first, U8* one_past_last, U8*& cursor)
 
 	if (cursor < one_past_last)
 	{
-
 
 		// whitespace
 		while (cursor < one_past_last && (CharIsSpace(*cursor)))
@@ -186,6 +309,7 @@ NextTokenFromText(U8* byte_first, U8* one_past_last, U8*& cursor)
 	return Token{range, kind};
 	
 }
+#endif
 
 ////////////////////////////////
 //- sb: Text -> Tree Functions
@@ -255,7 +379,7 @@ ParsePrefixExpression(Parser* p)
 		case TokenKind::Variable:
 			result = ParseVariable(p);
 			break;
-		case TokenKind::Minus:
+		case TokenKind::MinusSign:
 			result = ParseUnary(p);
 			break;
 		case TokenKind::Plus:
@@ -346,7 +470,7 @@ ParseUnary(Parser* p)
 
 	Rng1U64 op_range = p->current_token.range;
 
-	B32 is_negative = (p->current_token.kind == TokenKind::Minus);
+	B32 is_negative = (p->current_token.kind == TokenKind::MinusSign);
 
 	NextToken(p);
 
@@ -395,15 +519,15 @@ ParseInfixExpression(Parser* parser, Node* left)
 			result->kind = NodeKind::NaryOp;  
 			result->nary_ops = NaryOpKind::Plus;
 			break;
-		case TokenKind::Star:	
+		case TokenKind::MultiplicationSign:	
 			result->kind = NodeKind::NaryOp;  
 			result->nary_ops = NaryOpKind::Multiply;
 			break;
-		case TokenKind::Minus:	
+		case TokenKind::MinusSign:	
 			result->kind = NodeKind::BinaryOp;
 			result->bin_ops = BinOpKind::Minus;
 			break;
-		case TokenKind::Slash:	
+		case TokenKind::DivisionSign:	
 			result->kind = NodeKind::BinaryOp;
 			result->bin_ops = BinOpKind::Divide;
 			break;
@@ -471,14 +595,46 @@ PeekPrecedence(Parser* parser)
 }
 
 
+#if 0
+internal void
+RefillCodepointPrefetchBuffer(Parser* p)
+{
+	CodepointPrefetchBuffer* codepoint_cache = &(p->codepoint_cache);
 
+	codepoint_cache->current_index = 0;
+
+	// populate
+	for (U32 i = 0; i < CODEPOINT_BUF_SIZE; i++)
+	{
+		codepoint_cache[i] = NextCodepointFromText(p->lexer.src.str, p->lexer.src.str + p->lexer.src.size, p->lexer.cursor);
+		if ((codepoint_cache[i] == U32Max))
+		{
+			//TODO: LOG ERROR
+		}
+	}
+}
+internal UnicodeDecode 
+NextCodepoint(Parser* p)
+{
+	UnicodeDecode result{};	
+
+	CodepointPrefetchBuffer* codepoint_cache = &(parser->codepoint_cache);
+
+	// refill if all codepoints consumed
+	if ((codepoint_cache->current_index == 0) || (codepoint_cache->current_index == CODEPOINT_BUF_SIZE))
+		RefillCodepointPrefetchBuffer(parser);
+
+	result = codepoint_cache[codepoint_cache->current_index++];
+	return result;
+}
+#endif
 
 internal void 
 RefillTokenPrefetchBuffer(Parser* p)
 {
 	TokenPrefetchBuffer* token_cache = &(p->token_cache);
 
-	token_cache->current_index = token_cache->opl_index = 0;
+	token_cache->current_index = 0;
 
 	// populate
 	for (U32 i = 0; i < TOKEN_BUF_SIZE; i++)
@@ -500,7 +656,7 @@ NextToken(Parser* parser)
 		if ((token_cache->current_index == 0) || (token_cache->current_index == TOKEN_BUF_SIZE))
 			RefillTokenPrefetchBuffer(parser);
 
-		// consume current
+		// consume current and peek
 		parser->current_token = token_cache->tokens[token_cache->current_index]; 
 		token_cache->current_index++;
 

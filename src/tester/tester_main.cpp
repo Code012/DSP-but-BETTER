@@ -38,7 +38,7 @@ char const *groups[] = {
     "Bump",
     "Lexer",
     "Parser",
-    "Algebra"
+    // "Algebra"
 };
 
 U64 *DummyFunction2(Arena* escape)
@@ -164,21 +164,21 @@ DEFINE_TEST_G(TestNextToken, Parser) {
     
     String8 tests[] = { // gpt for test cases
         Str8Lit("2+2"),
-        Str8Lit("-5"),
+        Str8Lit("−5"),
         Str8Lit("+7"),
-        Str8Lit("-(3)"),
+        Str8Lit("−(3)"),
         Str8Lit("+(4)"),
-        Str8Lit("1+-2"),
-        Str8Lit("1--2"),
-        Str8Lit("(-1)+(+2)"),
-        Str8Lit("3*(2+1)"),
-        Str8Lit("(3+2)*4"),
-        Str8Lit("10/(5-3)"),
-        Str8Lit("-(1+2)*3"),
-        Str8Lit("((1+2)*3)-4"),
-        Str8Lit("1+2*3-4/2"),
+        Str8Lit("1+−2"),
+        Str8Lit("1−−2"),
+        Str8Lit("(−1)+(+2)"),
+        Str8Lit("3×(2+1)"),
+        Str8Lit("(3+2)×4"),
+        Str8Lit("10÷(5−3)"),
+        Str8Lit("−(1+2)×3"),
+        Str8Lit("((1+2)×3)−4"),
+        Str8Lit("1+2×3−4÷2"),
         Str8Lit("((1))"),
-        Str8Lit("-((3+5)*2)"),
+        Str8Lit("−((3+5)×2)"),
         };
 
     for (U32 i = 0; i < ArrayCount(tests); i++)
@@ -218,7 +218,7 @@ DEFINE_TEST_G(TestNextToken, Algebra) {
         }
     }
 
-    result.root = algebra::AutomaticSimplify(result.root);
+    // result.root = algebra::AutomaticSimplify(result.root);
 
     parse::PrintExpr(result.root);
 

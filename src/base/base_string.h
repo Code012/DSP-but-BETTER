@@ -65,14 +65,29 @@ struct StringJoin
     String8 post;
 };
 
+
+////////////////////////////////
+//- UTF Decoding Types
+
+struct UnicodeDecode
+{
+    U32 inc;
+    U32 codepoint;
+};
+
 ///////////////////////////////
 //- Character Classification & Conversion Functions
 // TODO: (sb): implement as needed
 internal B32 CharIsAlpha(U8 c);
+internal B32 CodepointIsAlpha(U32 c);
 internal B32 CharIsAlphaUpper(U8 c);
+internal B32 CodepointIsAlphaUpper(U32 c);
 internal B32 CharIsAlphaLower(U8 c);
+internal B32 CodepointIsAlphaLower(U32 c);
 internal B32 CharIsDigit(U8 c);
+internal B32 CodepointIsDigit(U32 c);
 internal B32 CharIsSpace(U8 c);
+internal B32 CodepointIsSpace(U32 c);
 internal B32 UpperFromChar(U8 c);
 internal B32 LowerFromChar(U8 c);
 
@@ -123,11 +138,13 @@ internal String8 PushStr8F(Arena* arena, char const* fmt, ...);
 //- String Splitting & Joining
 
 // internal String8List Str8Split(Arena *arena, String8 string, U8 *split_chars, U64 split_char_count, StringSplitFlags flags, )
-internal String8     Str8ListJoin(Arena *arena, String8List *list, StringJoin *optional_params);
+internal String8  Str8ListJoin(Arena *arena, String8List *list, StringJoin *optional_params);
 
-
+////////////////////////////////
+//- UTF-8 Decoding/Encoding
+internal UnicodeDecode UTF8Decode(U8* str, U64 max);
+internal U32 UTF8Encode(U8* str, U32 codepoint);
 
 internal U32 Utf8FromCodepoint(U8 *out, U32 codepoint);
-internal String8 PushString8FromCodepoint(Arena* arena, U32 codepoint);
 
 #endif // BASE_STRING_HPP
