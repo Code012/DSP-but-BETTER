@@ -17,8 +17,9 @@
 //- [h] root
 #include "base/base_inc.h"
 #include "os/os_inc.h"
-#include "parse/parse_inc.h"
-#include "algebra/algebra_inc.h"
+#include "expr/expr_inc.h"
+// #include "parse/parse_inc.h"
+// #include "algebra/algebra_inc.h"
 #include "ui/ui_inc.h"
 
 //- foreign includes
@@ -37,8 +38,9 @@
 //- [cpp] root
 #include "base/base_inc.cpp"
 #include "os/os_inc.cpp"
-#include "parse/parse_inc.cpp"
-#include "algebra/algebra_inc.cpp"
+#include "expr/expr_inc.cpp"
+// #include "parse/parse_inc.cpp"
+// #include "algebra/algebra_inc.cpp"
 #include "ui/ui_inc.cpp"
 
 
@@ -130,16 +132,16 @@ EntryPoint(U64 argument_count, char** arguments)
         // TODO(sb): Handle submit button pointer click too, its just enter for now
         if (submit)
         {
-            parse::Parser parser{scratch.arena, App::app_state->input_box.text};   
-            parse::ParseResult parse_result = parse::ParseFromText(&parser, App::app_state->input_box.text);
-            parse::DebugPrintParseResult(parse_result, App::app_state->input_box.text);
+            expr::Parser parser{scratch.arena, App::app_state->input_box.text};   
+            expr::ParseResult parse_result = expr::ParseFromText(&parser, App::app_state->input_box.text);
+            expr::DebugPrintParseResult(parse_result, App::app_state->input_box.text);
         
             if (parse_result.msgs.count > 0)
             {
                 // TODO(sb): Display errors and warnings in ui
             }
 
-            algebra::Result algebra_result = algebra::SimplifyWithSteps(parse_result.root);
+            expr::Result algebra_result = expr::SimplifyWithSteps(parse_result.root);
             // algebra::PrintSteps(algebra_result.steps);
         }
 
