@@ -18,7 +18,7 @@
 #include "base/base_inc.h"
 #include "os/os_inc.h"
 #include "parse/parse_inc.h"
-// #include "algebra/algebra_inc.h"
+#include "algebra/algebra_inc.h"
 #include "ui/ui_inc.h"
 
 //- foreign includes
@@ -38,7 +38,7 @@
 #include "base/base_inc.cpp"
 #include "os/os_inc.cpp"
 #include "parse/parse_inc.cpp"
-// #include "algebra/algebra_inc.cpp"
+#include "algebra/algebra_inc.cpp"
 #include "ui/ui_inc.cpp"
 
 
@@ -131,22 +131,16 @@ EntryPoint(U64 argument_count, char** arguments)
         if (submit)
         {
             parse::Parser parser{scratch.arena, App::app_state->input_box.text};   
-            parse::ParseResult result = parse::ParseFromText(&parser, App::app_state->input_box.text);
-            parse::DebugPrintParseResult(result, App::app_state->input_box.text);
+            parse::ParseResult parse_result = parse::ParseFromText(&parser, App::app_state->input_box.text);
+            parse::DebugPrintParseResult(parse_result, App::app_state->input_box.text);
         
-            if (parser.msgs.count > 0)
+            if (parse_result.msgs.count > 0)
             {
                 // TODO(sb): Display errors and warnings in ui
-                for EachNode(msg, parse::Msg, parser.msgs.first)
-                {
-                    PrintRed((U32)msg->string.size, msg->string.str);
-                }
             }
 
-            // Algebra::Result holds Node* root, and linked list to steps
-            #if 0
-            Algebra::Result expr = Algebra::SimplifyWithSteps(result.root);
-            #endif
+            algebra::Result algebra_result = algebra::SimplifyWithSteps(parse_result.root);
+            // algebra::PrintSteps(algebra_result.steps);
         }
 
 // -------------------------------------------------------------------------------------------------

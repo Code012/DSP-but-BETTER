@@ -260,6 +260,15 @@ internal void BuildUI()
                     .fontId = FONT_ID_BODY_16,
                     .fontSize = 24,
 	                }));
+
+				// TODO(sb): Custom text element to avoid clay's text measurement cache
+				// CustomLayoutElement input_element = {	// YOU WERE HERE
+				// 	.type = CUSTOM_LAYOUT_ELEMENT_TYPE_TEXT_INPUT,
+				// 	.customData = {
+
+				// 	}
+				// }
+
 // -------------------------------------------------------------------------------------------------
 			};
 			

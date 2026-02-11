@@ -177,7 +177,7 @@ struct Node
 	Node* next;
 
 	// sb: payload
-	union
+	union 					// Tidbit(sb): Recently learnt from this (https://eel.is/c++draft/class#union.general-2) that type punning with this union will be UB, but I'm fine because of the invariant that the union value will be selected in accordance with the node kind. Type punning with memcpy is far better, or std::bitcast from c++20
 	{
 		double number;
 		String8 name;		// interchangeable for variable name or function name

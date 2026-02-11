@@ -4,52 +4,67 @@
 
 namespace algebra {
 
+global StepList step_list{};
+
 ///////////////////////////////
 //- Algebraic Simplification 
 
+internal Result
+SimplifyWithSteps(parse::Node* root)
+{
+	Result result{};
+	Kind flags{};
+
+	flags = AlgebraKindFromNodeKind(root);
+	result.root = AutomaticSimplify(root, flags);
+
+
+	return result;
+}
+
 // page 92. [Figure 3.10.]
-internal Node* 
-AutomaticSimplify(Node* u, Kind flags)
+internal parse::Node* 
+AutomaticSimplify(parse::Node* u, Kind flags)
 {
 
 	Kind operand_flags{};
 
 	//- 1. Integers and Symbols are already in simplified form
-	if (HasFlag<Kind>(flags, Kind::Integer) || HasFlag<Kind>(flags, Kind::Symbol))		// leaf nodes, base condition
+	if (HasFlag<Kind>(flags, Kind::Integer_B) || HasFlag<Kind>(flags, Kind::Symbol_B))		// leaf nodes, base condition
 	{
 		return u;
 	}
 	//- 2. For fractions, simplified form is obtained with SimplifyRationalNumber
-	else if (u.kind == parse::NodeKind::BinaryOp && HasFlag<Kind>(flags, Kind::FracOp))
+	else if (u->kind == parse::NodeKind::BinaryOp && HasFlag<Kind>(flags, Kind::FracOp_B))
 	{
-		return SimplifyRationalNumber(u);
+		// return SimplifyRationalNumber(u);
 	}
 	//- 3. For other compound expressions: 
 	else
 	{
 		// 3.1 First, simplify each operand recursively in depth-first post-order (children first)
-		// DetermineOperandFlags is only valid to use here before any simplification for the node is applied. See comment above algebra::Kind in src/algebra/algebra_core.h.
+		// AlgebraKindFromNodeKind is only valid to use here before any simplification for the node is applied. See comment above algebra::Kind in src/algebra/algebra_core.h.
 		switch (u->kind)
 		{
 			case parse::NodeKind::UnaryOp:
 			{
-				operand_flags = DetermineOperandFlags(u->unary_child);
+				operand_flags = AlgebraKindFromNodeKind(u->unary_child);
 				u->unary_child = AutomaticSimplify(u->unary_child, operand_flags);		// my dudes don't freak out at the lack of nullptr checks, I'm trying something out trust (https://www.rfleury.com/p/the-easiest-way-to-handle-errors)
 			} 
 			case parse::NodeKind::BinaryOp:
 			{
-				operand_flags = DetermineOperandFlags(u->left);
-				u->left = AutomaticSimplify(u->left, operand_flags);
+				operand_flags = AlgebraKindFromNodeKind(u->bin_left);
+				u->bin_left = AutomaticSimplify(u->bin_left, operand_flags);
 
-				operand_flags = DetermineOperandFlags(u->right);
-				u->right = AutomaticSimplify(u->right, operand_flags);
+				operand_flags = AlgebraKindFromNodeKind(u->bin_right);
+				u->bin_right = AutomaticSimplify(u->bin_right, operand_flags);
 			}
 			case parse::NodeKind::NaryOp:
 			{
 				for(S64 i = 0; i < u->num_operands; i++)
 				{
-					operand_flags = DetermineOperandFlags(u->nary_next); 
-					u->nary_next = AutomaticSimplify(u->nary_next);
+					operand_flags = AlgebraKindFromNodeKind(u->nary_next); 
+					u->nary_next = AutomaticSimplify(u->nary_next, operand_flags);
 				}
 			} 
 		}
@@ -62,7 +77,7 @@ AutomaticSimplify(Node* u, Kind flags)
 			// {
 			// 	return SimplifyPower(u);
 			// }
-			case Kind::ProdUp:
+			case Kind::ProdOp_B:
 			{
 				return SimplifyProduct(u);
 			}
@@ -90,11 +105,13 @@ AutomaticSimplify(Node* u, Kind flags)
 	}
 }
 
-internal Node* 
-SimplifyProduct()
+internal parse::Node* 
+SimplifyProduct(parse::Node* u)
 {
-	Node* result{};
+	parse::Node* result{};
 
+	
+	
 	return result;
 }
 
@@ -103,7 +120,7 @@ SimplifyProduct()
 
 // parse::NodeKind -> algebra::Kind
 internal Kind 
-DetermineOperandFlags(Node* expr)
+AlgebraKindFromNodeKind(parse::Node* expr)
 {
 
 	using enum parse::NodeKind;	// for switch-case enumerators
@@ -169,7 +186,7 @@ DetermineOperandFlags(Node* expr)
 				operand_flags |= Kind::DiffOp_B;
 				operand_flags |= Kind::UnaryDiffOp_S;
 			}
-			else if (expr->un_ops == parse::NodeKind::Positive)
+			else if (expr->un_ops == parse::UnOpKind::Positive)
 			{
 				operand_flags |= Kind::SumOp_B;
 				operand_flags |= Kind::UnarySumOp_S;
@@ -180,9 +197,11 @@ DetermineOperandFlags(Node* expr)
 		case FunctionCall:		
 		{} break;
 	}
+
+	return operand_flags;
 }
 
-internal B32 IsInteger(Node* expr)
+internal B32 IsInteger(parse::Node* expr)
 {
 	return (expr->kind == parse::NodeKind::Number) ? 1 : 0;
 }

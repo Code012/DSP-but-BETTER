@@ -14,8 +14,21 @@ Camera Raylib_camera;
 
 typedef enum
 {
+    CUSTOM_LAYOUT_ELEMENT_TYPE_TEXT_INPUT,
     CUSTOM_LAYOUT_ELEMENT_TYPE_3D_MODEL
 } CustomLayoutElementType;
+
+struct CustomLayoutElement_TextInput
+{
+    char *text;
+    int cursor_position;
+    bool is_focused;
+    Color text_color;
+    uint16_t font_id;
+    float font_size;
+    char *placeholder_text;
+    bool show_placeholder;
+};
 
 typedef struct
 {
@@ -29,6 +42,7 @@ typedef struct
 {
     CustomLayoutElementType type;
     union {
+        CustomLayoutElement_TextInput textInputWidget;
         CustomLayoutElement_3DModel model;
     } customData;
 } CustomLayoutElement;

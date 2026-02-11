@@ -35,8 +35,8 @@ namespace algebra
 		Integer_B 	= (1u << 1),
 		Symbol_B	= (1u << 2),
 		FracOp_B	= (1u << 3),		// define these terms (BinaryOp)
-		PowUp_B   	= (1u << 4),		// (UnaryOp)
-		ProdUp_B	= (1u << 5),		// 
+		PowOp_B   	= (1u << 4),		// (UnaryOp)
+		ProdOp_B	= (1u << 5),		// 
 		SumOp_B		= (1u << 6),
 		QuotOp_B	= (1u << 7),
 		FactOp_B	= (1u << 8),
@@ -72,6 +72,12 @@ namespace algebra
 		U64 count;
 	};
 
+	struct Result
+	{
+		parse::Node* root;
+		StepList steps;
+	};
+
 	///////////////////////////////
 	//-
 	struct Simplifier
@@ -79,16 +85,18 @@ namespace algebra
 		StepList steps;
 		B32 simplifying_coefficient{0};
 		
-	}
+	};
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//- Algebraic Simplification 
-	internal Node* AutomaticSimplify(Node* u, Kind flags);	// page 92. [Figure 3.10.]
+	internal parse::Node* AutomaticSimplify(parse::Node* u, Kind flags);	// page 92. [Figure 3.10.]
 
+	//- Fraction Simplification
+	// SimplifyRationalNumber			// Not written
 	//- Power Simplification
 	// internal void SimplifyPower(Node* u) {};		// Not written
 	//- Product Simplification
-	internal Node* SimplifyProduct(Node* u);		// Not written
+	internal parse::Node* SimplifyProduct(parse::Node* u);		// Not written
 	//- Sum Simplification
 	// internal void SimplifySum(Node* u) {};			// Not written
 	//- Quotient Simplification
@@ -104,8 +112,8 @@ namespace algebra
 	//- Helpers
 
 	// parse::NodeKind -> algebra::Kind
-	internal Kind DetermineOperandFlags(Node* expr);
-	internal B32 IsInteger(Node* expr);
+	internal Kind AlgebraKindFromNodeKind(parse::Node* expr);
+	internal B32 IsInteger(parse::Node* expr);
 
 } // namespace algebra
 #endif // ALGEBRA_CORE_H
