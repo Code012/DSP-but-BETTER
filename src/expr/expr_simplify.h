@@ -67,7 +67,7 @@ namespace expr {
 
 	///////////////////////////////
 	//- Helpers
-
+	internal B32 IsZero(Node* node);
 	
 
 }	// namespace expr

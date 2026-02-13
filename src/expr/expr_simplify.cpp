@@ -39,7 +39,6 @@ AutomaticSimplify(Node* u)
 	else
 	{
 		// 3.1 First, simplify each operand recursively in depth-first post-order (children first)
-		// AlgebraKindFromNodeKind is only valid to use here before any simplification for the node is applied. 
 		switch (u->kind)
 		{
 			case NodeKind::UnaryOp:
@@ -98,12 +97,33 @@ internal Node*
 SimplifyProduct(Node* u)
 {
 	Node* result{};
+	result->bin_left = result->bin_right = result->unary_child = result->nary_first = result->nary_next = &nil_node;
+
 	// let L = [u1,...,un] be the list of the operands of u.
 
 	// SPRD-1. If Undefined ∈ L, then return Undefined
 	for (Node* it = u->nary_first; !NodeIsNil(it); it = it->next)
 	{
+		if (it->flags == NodeFlags::Undefined)
+		{
+			result->flags = NodeFlags::Undefined;
+			return result;
+		}
+	}
 
+	// SPRD-2: if 0 ∈ L, then return 0
+	for (Node* it = u->nary_first; !NodeIsNil(it); it = it->next)
+	{
+		if (IsInteger(it) && IsZero(it))
+		{
+			result->kind = NodeKind::Number;
+			result->flags = NodeFlags::Integer_B;
+			result->id = it->id;
+			result->number = 0;
+			// YOU WERE HERE
+			// SOME IDEAS: have create int function that takes a node id as well to encode what changed into what
+			return result;
+		}
 	}
 
 
@@ -112,7 +132,11 @@ SimplifyProduct(Node* u)
 
 ///////////////////////////////
 //- Helpers
-
+internal B32 
+IsZero(Node* node)
+{
+	return (node->number == 0.0 ? 1 : 0);
+}
 
 
 

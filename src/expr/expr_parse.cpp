@@ -295,12 +295,12 @@ ParsePrefixExpression(Parser* p)
 			// log error to side channel
 			String8 error_msg_start = Str8Lit("Unexpected token");
 
-			U8* bad_char_start = p->lexer.src.str + p->current_token.range.min; 
+			U8* bad_char_start = p->lexer.src.str + p->current_token.range.min(); 
 			String8 error_msg_middle = Str8Range(bad_char_start, bad_char_start+1); // bad character string
 			
 			String8 error_msg_end = Str8Lit("at position");
 
-			String8 msg = PushStr8F(log_arena, "%S '%S' %S %llu", error_msg_start, error_msg_middle, error_msg_end, p->current_token.range.min+1);
+			String8 msg = PushStr8F(log_arena, "%S '%S' %S %llu", error_msg_start, error_msg_middle, error_msg_end, p->current_token.range.min()+1);
 			MsgListPush(log_arena, &p->msgs, result, MsgKind::Error, msg);
 			// create error node
 			result = NodeAlloc(&p->node_pool);
@@ -320,8 +320,8 @@ ParseNumeric(Parser* parser)
 
 	U8* base = parser->lexer.src.str;
 
-	U8* src_start = base + parser->current_token.range.min; 
-	U8* src_opl = base + parser->current_token.range.max;
+	U8* src_start = base + parser->current_token.range.min(); 
+	U8* src_opl = base + parser->current_token.range.max();
 	
 	String8 lexeme = Str8Range(src_start, src_opl);
 	
@@ -354,8 +354,8 @@ ParseVariable(Parser* parser)
 {
 	U8* base = parser->lexer.src.str;
 
-	U8* src_start = base + parser->current_token.range.min; 
-	U8* src_opl = base + parser->current_token.range.max;
+	U8* src_start = base + parser->current_token.range.min(); 
+	U8* src_opl = base + parser->current_token.range.max();
 
 	Rng1U64 var_range = parser->current_token.range;
 	String8 var_name = Str8Range(src_start, src_opl);
@@ -400,8 +400,8 @@ ParseUnary(Parser* p)
 	result->unary_child = ParseExpression(p, Precedence::UNARY);
 	
 	// compute ranges
-	result->original.min = op_range.min;
-	result->original.max = result->unary_child->original.max;
+	result->original.min() = op_range.min();
+	result->original.max() = result->unary_child->original.max();
 	result->modified = result->original;
 	
 	return result;
@@ -473,12 +473,12 @@ ParseInfixExpression(Parser* parser, Node* left)
 			// log error to side channel
 			String8 error_msg_start = Str8Lit("Unexpected token");
 
-			U8* bad_char_start = parser->lexer.src.str + parser->current_token.range.min; 
+			U8* bad_char_start = parser->lexer.src.str + parser->current_token.range.min(); 
 			String8 error_msg_middle = Str8Range(bad_char_start, bad_char_start+1); // bad character string
 			
 			String8 error_msg_end = Str8Lit("at position");
 
-			String8 msg = PushStr8F(log_arena, "%S '%S' %S %llu", error_msg_start, error_msg_middle, error_msg_end, parser->current_token.range.min+1);
+			String8 msg = PushStr8F(log_arena, "%S '%S' %S %llu", error_msg_start, error_msg_middle, error_msg_end, parser->current_token.range.min()+1);
 			MsgListPush(log_arena, &parser->msgs, result, MsgKind::Error, msg);
 
 		} break;
@@ -748,18 +748,18 @@ internal void DebugPrintNode(Node* node, U32 depth, char const* label)
 		case NodeKind::Number:
 		{
 			printf("Number( id=%llu, value=%.6f, range=[%llu,%llu) )\n",
-					node->id, node->number, node->original.min, node->original.max);
+					node->id, node->number, node->original.min(), node->original.max());
 		} break;
 		case NodeKind::Variable:
 		{
 			printf("Variable( id=%llu, name=%.*s, range=[%llu,%llu) )\n",
-					node->id, Str8Varg(node->name), node->original.min, node->original.max);
+					node->id, Str8Varg(node->name), node->original.min(), node->original.max());
 		} break;
 		case NodeKind::UnaryOp:
 		{
 			char const* op_str = (node->un_ops == UnOpKind::Negate) ? "-" : "+";
 			printf("UnaryOp( id=%llu, op='%s', range=[%llu,%llu) )\n",
-					node->id, op_str, node->original.min, node->original.max);
+					node->id, op_str, node->original.min(), node->original.max());
 
 			DebugPrintNode(node->unary_child, depth + 1, "child");
 		} break;
@@ -775,7 +775,7 @@ internal void DebugPrintNode(Node* node, U32 depth, char const* label)
 			}
 
 			printf("BinaryOp( id=%llu, op='%s', range=[%llu,%llu) )\n",
-					node->id, op_str, node->original.min, node->original.max);
+					node->id, op_str, node->original.min(), node->original.max());
 
 			DebugPrintNode(node->bin_left, depth + 1, "left");
 			DebugPrintNode(node->bin_right, depth + 1, "right");
@@ -791,7 +791,7 @@ internal void DebugPrintNode(Node* node, U32 depth, char const* label)
 			}
 
 			printf("NaryOp( id=%llu, op='%s', range=[%llu,%llu) )\n",
-					node->id, op_str, node->original.min, node->original.max);
+					node->id, op_str, node->original.min(), node->original.max());
 
 			DebugPrintNode(node->nary_first, depth + 1, "left");
 			DebugPrintNode(node->nary_next, depth + 1, "right");
@@ -800,7 +800,7 @@ internal void DebugPrintNode(Node* node, U32 depth, char const* label)
 		case NodeKind::ErrorMarker:
 		{
 			printf("\x1b[31m ERROR( id=%llu, range=[%llu,%llu) ) \x1b[0m\n",
-					node->id, node->original.min, node->original.max);			
+					node->id, node->original.min(), node->original.max());			
 		} break;
 		default:
 		{

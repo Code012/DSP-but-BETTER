@@ -49,7 +49,7 @@ B32 TextOpHasEffect(UI::TextOp* op, UI::TextEditState* before);
 B32 TextOpHasEffect(UI::TextOp* op, UI::TextEditState* before)
 {
     B32 result = 0;
-    if (op->range.min != op->range.max ||   // non-empty replaced range (delete or overwrite)
+    if (op->range.min() != op->range.max() ||   // non-empty replaced range (delete or overwrite)
         op->replace_string.size != 0 ||     // inserted text
         op->new_cursor != before->cursor || // cursor moved
         op->new_mark != before->mark)       // selection / mark changed
@@ -117,7 +117,7 @@ EntryPoint(U64 argument_count, char** arguments)
                 Clay_ResetMeasureTextCache();       // without this, writing words (characters delimited by space) crashes the program at a certain length
 
                 UI::ApplyTextOp(
-                    App::app_state->string_arena,
+                    // App::app_state->string_arena,
                     &App::app_state->input_box,
                     &op
                 );

@@ -77,6 +77,8 @@
 
 #define CeilIntegerDiv(a,b) (((a) + (b) - 1)/(b))
 
+#define Swap(T,a,b) do{T t__ = a; a = b; b = t__;}while(0)
+
 #if LANG_CPP
 # define zero_struct {}
 #else
@@ -114,6 +116,7 @@ read_only global U32 bitmask3 = 0x00000007;
 read_only global U32 bitmask4 = 0x0000000f;
 read_only global U32 bitmask5 = 0x0000001f;
 read_only global U32 bitmask6 = 0x0000003f;
+read_only global U32 bitmask7 = 0x0000007f;
 
 read_only global U32 bit8 = (1<<7);
 
