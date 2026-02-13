@@ -175,9 +175,9 @@ Str8Match(String8 a, String8 b, StringMatchFlags flags)
 internal String8 
 Str8Substr(String8 str, Rng1U64 range)
 {
-	range.min = ClampTop(range.min, str.size);
-	range.max = ClampTop(range.max, str.size);
-	str.str += range.min;
+	range.min() = ClampTop(range.min(), str.size);
+	range.max() = ClampTop(range.max(), str.size);
+	str.str += range.min();
 	str.size = Dim1U64(range);
 	return str;
 }
@@ -416,4 +416,42 @@ PushString8FromCodepoint(Arena* arena, U32 codepoint)
 	str.size = inc;
 
 	return str;
+}
+
+// `lead` must be the first byte of a UTF-8 codepoint but it will still work if a continuation byte is passed to it
+internal S64 Utf8CodePointSize(U8 lead)
+{
+    // 0xxxxxxx
+    // ASCII range (U+0000 – U+007F)
+    // Single-byte codepoint
+    if ((lead & 0x80) == 0x00) return 1;
+
+    // 110xxxxx
+    // Start of a 2-byte UTF-8 sequence
+    if ((lead & 0xE0) == 0xC0) return 2;
+
+    // 1110xxxx
+    // Start of a 3-byte UTF-8 sequence
+    if ((lead & 0xF0) == 0xE0) return 3;
+
+    // 11110xxx
+    // Start of a 4-byte UTF-8 sequence
+    if ((lead & 0xF8) == 0xF0) return 4;
+
+    // if lead is a continuation byte (10xxxxxx)
+    return 1;
+}
+
+// `cursor` is a byte index *after* a codepoint.
+internal S64 Utf8PrevCodePointSize(U8 *data, S64 cursor)
+{
+    S64 i = cursor - 1;
+
+    // Walk backward over continuation bytes: 10xxxxxx
+    while ((data[i] & 0xC0) == 0x80)
+    {
+        i--;
+    }
+
+    return cursor - i;
 }

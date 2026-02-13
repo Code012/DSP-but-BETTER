@@ -147,4 +147,7 @@ internal U32 UTF8Encode(U8* str, U32 codepoint);
 
 internal U32 Utf8FromCodepoint(U8 *out, U32 codepoint);
 
+internal S64 Utf8CodePointSize(U8 lead);
+internal S64 Utf8PrevCodePointSize(U8 *data, S64 cursor);
+
 #endif // BASE_STRING_HPP

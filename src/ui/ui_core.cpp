@@ -27,12 +27,12 @@ TextActionFromEvent(OS::Event* event)
 		case OS::Key::Right: 	
 		{
 			action.delta = +1;
-			action.flags |= TextActionFlags::DeltaPicksSelectinSide;
+			action.flags |= TextActionFlags::DeltaPicksSelectionSide;
 		}break;
 		case OS::Key::Left:  	
 		{
 			action.delta = -1;
-			action.flags |= TextActionFlags::DeltaPicksSelectinSide;
+			action.flags |= TextActionFlags::DeltaPicksSelectionSide;
 		}break;
 		case OS::Key::Home:		{action.delta = S64Max;}break; // enfore post-navigation, cursors will be clamped to the range of valid points for a given string
 		case OS::Key::End:		{action.delta = S64Min;}break; // enfore post-navigation, cursors will be clamped to the range of valid points for a given string
@@ -41,7 +41,7 @@ TextActionFromEvent(OS::Event* event)
 			action.delta = -1;
 			action.flags |= TextActionFlags::Delete | TextActionFlags::ZeroDeltaWithSelection;
 		}break;
-		case OS::Key::Esc:
+		case OS::Key::Delete:
 		{
 			action.delta = +1;
 			action.flags |= TextActionFlags::Delete | TextActionFlags::ZeroDeltaWithSelection;
@@ -72,8 +72,8 @@ TextOpFromStateAndAction(Arena* arena, String8 string, TextEditState* state, Tex
 	op.new_cursor = state->cursor;
 	op.new_mark = state->mark;
 	op.replace_string = Str8Lit("");
-	op.range = Rng1S64{0, 0};
-	// op.range = Rng1S64{Min(state->cursor, state->mark),
+	op.range = Rng1S64(0, 0);
+	// op.range = RRng_1U64{Min(state->cursor, state->mark),
 						// Max(state->cursor, state->mark)};
 
 	// --- navigation ----------------------------------------------
@@ -100,7 +100,7 @@ TextOpFromStateAndAction(Arena* arena, String8 string, TextEditState* state, Tex
 
 	// pick selection side
 	if (state->cursor != state->mark &&
-		HasFlag(action->flags, TextActionFlags::DeltaPicksSelectinSide))
+		HasFlag(action->flags, TextActionFlags::DeltaPicksSelectionSide))
 	{
 		ll_delta = 0;
 		if (action->delta > 0)
@@ -129,8 +129,8 @@ TextOpFromStateAndAction(Arena* arena, String8 string, TextEditState* state, Tex
 	// delete
 	if (HasFlag(action->flags, TextActionFlags::Delete))
 	{
-		op.range = Rng1S64{op.new_cursor, op.new_mark};
-		op.new_cursor = op.new_mark = op.range.min;
+		op.range = Rng1S64(op.new_cursor, op.new_mark);
+		op.new_cursor = op.new_mark = op.range.min();
 	}
 
 	// insert / paste - mutually exclusive
@@ -167,7 +167,49 @@ TextOpFromStateAndAction(Arena* arena, String8 string, TextEditState* state, Tex
 }
 
 internal void 
-ApplyTextOp(Arena* arena, TextEditState* state, TextOp* op)
+ReplaceTextRange(String8& buffer, String8 replace_string, Rng1S64 replace_range, S64 new_buffer_size)
+{
+	ArenaTemp scratch = ScratchBegin(0, 0);
+
+	String8 temp_str{};
+	temp_str.str = PushArray(scratch.arena, U8, buffer.size);
+	temp_str.size = buffer.size;
+	MemoryCopy(temp_str.str, buffer.str, buffer.size);
+
+    
+    String8 before_range = Prefix8(temp_str, replace_range.min());
+    String8 after_range = Str8Skip(temp_str, replace_range.max());
+
+    buffer.size = new_buffer_size;
+
+    if (before_range.size != 0)
+    {
+    	MemoryCopy(buffer.str, before_range.str, before_range.size);
+    }
+    if (replace_string.size != 0)
+    {
+    	MemoryCopy(buffer.str + replace_range.min(), replace_string.str, replace_string.size);
+    }
+    if (after_range.size != 0)
+    {
+    	MemoryCopy(buffer.str + replace_range.min() + replace_string.size, after_range.str, after_range.size);
+    }
+
+    ScratchEnd(scratch);
+
+    // return buffer;
+
+}
+
+internal S64 ABS(S64 i) {
+	if (i < 0)
+		i*=(-1);
+	return i;
+
+}
+
+internal void 
+ApplyTextOp(TextEditState* state, TextOp* op)
 {
     // Copy to clipboard if needed
     // if (op->copy_string.size > 0)
@@ -178,35 +220,6 @@ ApplyTextOp(Arena* arena, TextEditState* state, TextOp* op)
     //     SetClipboardText((const char*)null_terminated.str);
     //     ScratchEnd(temp);
     // }
-    
-    // Apply text replacement
-    // Invariant: there is always a selection
-    // String8 old_text = state->text;
-    // S64 new_size = old_text.size - (op->range.max - op->range.min) + op->replace_string.size;
-    // if (new_size < App::app_state->input_box_limit)															// not  tracking grapheme clusters because idk how rn, and this is easier
-	// {
-	//     if (op->range.min != op->range.max || op->replace_string.size > 0)
-	//     {
-	        
-	//         // U8* new_str = PushArray(arena, U8, new_size);
-	//         U8* new_str = state->text.str;
-	        
-	//         // Copy before range
-	//         MemoryCopy(new_str, old_text.str, op->range.min);
-	        
-	//         // Copy replacement
-	//         MemoryCopy(new_str + op->range.min, op->replace_string.str, op->replace_string.size);
-	        
-	//         // Copy after range
-	//         MemoryCopy(new_str + op->range.min + op->replace_string.size,
-	//                    old_text.str + op->range.max,
-	//                    old_text.size - op->range.max);
-	        
-	//         state->text = Str8(new_str, new_size);
-	//     }
-	// }
-
-	ArenaTemp scratch = ScratchBegin(0, 0);
 
 	
     // Update cursor and mark
@@ -215,49 +228,20 @@ ApplyTextOp(Arena* arena, TextEditState* state, TextOp* op)
 
     // TODO(sb): set clipboard text
 
-    // replace string
-    // String8 modified_string = UI::PushStringReplaceRange(scratch.arena, op->replace_string,
-    													// Rng1U64{op->replace.min, op->replace.max},
-    											// )
     // TODO(sb): clean this code up
     // Invariant: There is always a selection
-    String8 result = zero_struct;
-    String8 edit_string = state->text;
+    Rng1S64 range = Rng1S64((op->range.min()), (op->range.max()));
+    range.min() = ClampTop(range.min(), state->text.size);
+    range.max() = ClampTop(range.max(), state->text.size);
+    range = Rng1S64(range.min(), range.max());
+    S64 new_buffer_size = state->text.size - ABS(DeltaS64(range)) + op->replace_string.size;
 
-    Rng1U64 range = Rng1U64{static_cast<U64>(op->range.min), static_cast<U64>(op->range.max)};
-    range.min = ClampTop(range.min, edit_string.size);
-    range.max = ClampTop(range.max, edit_string.size);
-    range = Rng1U64{range.min, range.max};
-    U64 result_size = edit_string.size - Dim1U64(range) + op->replace_string.size;
-
-    if (result_size < App::app_state->input_box_limit)	// not tracking grapheme clusters because idk how rn, and this is easier TODO(sb): figure it out if you have time
+    // TODO(sb): Track codepoints and limit by codepoint
+    if (new_buffer_size < App::app_state->input_box_limit)
 	{
-	    result.str = PushArray(scratch.arena, U8, result_size);
-	    result.size = edit_string.size;
-	    MemoryCopy(result.str, edit_string.str, edit_string.size);
-	    
-	    String8 before_range = Prefix8(result, range.min);
-	    String8 after_range = Str8Skip(result, range.max);
-	    edit_string.size = result_size;
-
-	    if (before_range.size != 0)
-	    {
-	    	MemoryCopy(edit_string.str, before_range.str, before_range.size);
-	    }
-	    if (op->replace_string.size != 0)
-	    {
-	    	MemoryCopy(edit_string.str + range.min, op->replace_string.str, op->replace_string.size);
-	    }
-	    if (after_range.size != 0)
-	    {
-	    	MemoryCopy(edit_string.str + range.min + op->replace_string.size, after_range.str, after_range.size);
-	    }
+    	ReplaceTextRange(state->text, op->replace_string, range, new_buffer_size);
 	}
 
-    state->text = edit_string;
-
-
-    ScratchEnd(scratch);
 }
 
 
@@ -278,6 +262,7 @@ CodePointScan(String8 s, S64 cursor , S64 delta)
 		while (delta-- > 0 && cursor < s.size)
 			cursor += Utf8CodePointSize(s.str[cursor]);
 	}
+	// move left
 	else if (delta < 0)
 	{
 		while (delta++ < 0 && cursor > 0)
