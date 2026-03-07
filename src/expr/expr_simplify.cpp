@@ -10,11 +10,11 @@ global StepList step_list{};
 //- Algebraic Simplification 
 
 internal Result
-SimplifyWithSteps(Node* root)
+SimplifyWithSteps(Arena* arena, Node* root)
 {
 	Result result{};
 
-	result.root = AutomaticSimplify(root);
+	result.root = AutomaticSimplify(arena, root);
 
 
 	return result;
@@ -22,7 +22,7 @@ SimplifyWithSteps(Node* root)
 
 // page 92. [Figure 3.10.]
 internal Node* 
-AutomaticSimplify(Node* u)
+AutomaticSimplify(Arena* arena, Node* u)
 {
 
 	//- 1. Integers and Symbols are already in simplified form
@@ -43,19 +43,19 @@ AutomaticSimplify(Node* u)
 		{
 			case NodeKind::UnaryOp:
 			{
-				u->unary_child = AutomaticSimplify(u->unary_child);		// my dudes don't freak out at the lack of nullptr checks, I'm trying something out trust (https://www.rfleury.com/p/the-easiest-way-to-handle-errors)
+				u->unary_child = AutomaticSimplify(arena, u->unary_child);		// my dudes don't freak out at the lack of nullptr checks, I'm trying something out trust (https://www.rfleury.com/p/the-easiest-way-to-handle-errors)
 			} 
 			case NodeKind::BinaryOp:
 			{
-				u->bin_left = AutomaticSimplify(u->bin_left);
+				u->bin_left = AutomaticSimplify(arena, u->bin_left);
 
-				u->bin_right = AutomaticSimplify(u->bin_right);
+				u->bin_right = AutomaticSimplify(arena, u->bin_right);
 			}
 			case NodeKind::NaryOp:
 			{
 				for(S64 i = 0; i < u->num_operands; i++)
 				{
-					u->nary_next = AutomaticSimplify(u->nary_next);
+					u->nary_next = AutomaticSimplify(arena, u->nary_next);
 				}
 			} 
 		}
@@ -68,7 +68,7 @@ AutomaticSimplify(Node* u)
 		// }
 		if (HasFlag<NodeFlags>(u->flags, NodeFlags::ProdOp_B))
 		{
-			return SimplifyProduct(u);
+			return SimplifyProduct(arena, u);
 		}
 		// case NodeFlags::SumOp:
 		// {
@@ -94,38 +94,40 @@ AutomaticSimplify(Node* u)
 }
 
 internal Node* 
-SimplifyProduct(Node* u)
+SimplifyProduct(Arena* arena, Node* u)
 {
-	Node* result{};
-	result->bin_left = result->bin_right = result->unary_child = result->nary_first = result->nary_next = &nil_node;
+	Node result{};
+	result.bin_left = result.bin_right = result.unary_child = result.nary_first = result.nary_next = &nil_node;
 
 	// let L = [u1,...,un] be the list of the operands of u.
 
 	// SPRD-1. If Undefined ∈ L, then return Undefined
-	for (Node* it = u->nary_first; !NodeIsNil(it); it = it->next)
+	for (Node* it = u->nary_first; !NodeIsNil(it); it = it->nary_next)
 	{
 		if (it->flags == NodeFlags::Undefined)
 		{
-			result->flags = NodeFlags::Undefined;
+			result.flags = NodeFlags::Undefined;
 			return result;
 		}
 	}
 
 	// SPRD-2: if 0 ∈ L, then return 0
-	for (Node* it = u->nary_first; !NodeIsNil(it); it = it->next)
+	for (Node* it = u->nary_first; !NodeIsNil(it); it = it->nary_next)
 	{
 		if (IsInteger(it) && IsZero(it))
 		{
-			result->kind = NodeKind::Number;
-			result->flags = NodeFlags::Integer_B;
-			result->id = it->id;
-			result->number = 0;
+			result.kind = NodeKind::Number;
+			result.flags = NodeFlags::Integer_B;
+			result.id = it->id;
+			result.number = 0;
 			// YOU WERE HERE
 			// SOME IDEAS: have create int function that takes a node id as well to encode what changed into what
 			return result;
 		}
 	}
 
+	// Node* result = PushStruct(arena, Node);
+	// result->bin_left = result->bin_right = result->unary_child = result->nary_first = result->nary_next = &nil_node;
 
 	return result;
 }

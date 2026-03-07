@@ -186,8 +186,12 @@ struct Node
 	Node* nary_next;
 	// Node* func_arguments;
 
+	// sb: stepped solution links
+	Node* reduced_to;
+	Node* reduced_from;
+
 	// sb: free list link
-	Node* next;
+	// Node* free_next;			not using pool anymore, keeping tree immutable
 
 	// sb: payload
 	union 					// Tidbit(sb): Recently learnt from this (https://eel.is/c++draft/class#union.general-2) that type punning with this union will be UB, but I'm fine because of the invariant that the union value will be selected in accordance with the node kind. Type punning with memcpy is far better, or std::bitcast from c++20
@@ -211,14 +215,14 @@ struct Node
 
 };
 
-struct NodePool
-{
-	NONCOPYABLE_NONMOVABLE(NodePool)
-	NodePool();
+// struct NodePool
+// {
+// 	NONCOPYABLE_NONMOVABLE(NodePool)
+// 	NodePool();
 
-	Arena* arena;
-	Node* first_free_node;
-};
+// 	Arena* arena;
+// 	Node* first_free_node;
+// };
 
 
 ////////////////////////////////
@@ -254,7 +258,8 @@ struct Parser
 	Parser(Arena* arena, String8 src);
 
 	// memory
-	NodePool node_pool;	
+	// NodePool node_pool;
+	Arena* arena;
 
 	Lexer lexer;
 
@@ -289,6 +294,7 @@ global read_only Node nil_node =
 	&nil_node,
 	&nil_node,
 	&nil_node,
+	&nil_node,
 };
 
 ////////////////////////////////
@@ -304,8 +310,8 @@ internal B32 NodeIsNil(Node* node);
 #define NodeSetNil(p) ((p) = &nil_node)
 
 // sb: node pool
-internal Node* NodeAlloc(NodePool* node_pool);
-internal void NodeRelease(NodePool* node_pool, Node* node);
+// internal Node* NodeAlloc(NodePool* node_pool);
+// internal void NodeRelease(NodePool* node_pool, Node* node);
 
 ////////////////////////////////
 //- sb: Text -> Tokens Functions
@@ -351,6 +357,11 @@ internal void DebugPrintParseResult(ParseResult result, String8 source);
 internal void DebugPrintNode(Node* node, U32 depth = 0, char const* label = nullptr);
 internal void PrintNode(Node* node, U32 depth, char const* label);
 internal void PrintExpr(Node* node);
+
+
+
+
+internal void ZeroNode(Node* node);
 
 }	// namespace expr
 

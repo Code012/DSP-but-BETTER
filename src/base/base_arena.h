@@ -67,9 +67,10 @@ internal ArenaTemp ArenaGetScratch(Arena **conflict_array, U32 count);
 #define ScratchEnd(temp) ArenaTempEnd(temp)
 
 // push helper macros
-#define PushArrayNoZeroAligned(arena, type, count, align) (type *)ArenaPush((arena), sizeof(type)*(count), (align), (0))
-#define PushArrayAligned(arena, type, count, align)  	  (type *)ArenaPush((arena), sizeof(type)*(count), (align), (1))
-#define PushArrayNoZero(arena, type, count) 		      PushArrayNoZeroAligned(arena, type, count, Max(8, AlignOf(type)))
-#define PushArray(arena, type, count)  				      PushArrayAligned(arena, type, count, Max(8, AlignOf(type)))
+#define PushArrayNoZeroAligned(arena, type, count, align) 	(type *)ArenaPush((arena), sizeof(type)*(count), (align), (0))
+#define PushArrayAligned(arena, type, count, align)  	  	(type *)ArenaPush((arena), sizeof(type)*(count), (align), (1))
+#define PushArrayNoZero(arena, type, count) 		      	PushArrayNoZeroAligned(arena, type, count, Max(8, AlignOf(type)))
+#define PushArray(arena, type, count)  				      	PushArrayAligned(arena, type, count, Max(8, AlignOf(type)))
 
+#define PushStruct(arena, type)								PushArray(arena, type, 1)
 #endif // BASE_ARENA_HPP

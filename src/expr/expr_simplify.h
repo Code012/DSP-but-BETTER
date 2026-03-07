@@ -46,14 +46,14 @@ namespace expr {
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//- Algebraic Simplification 
-	internal Node* AutomaticSimplify(Node* u);	// page 92. [Figure 3.10.]
+	internal Node* AutomaticSimplify(Arena* arena, Node* u);	// page 92. [Figure 3.10.]
 
 	//- Fraction Simplification
 	// SimplifyRationalNumber			// Not written
 	//- Power Simplification
 	// internal void SimplifyPower(Node* u) {};		// Not written
 	//- Product Simplification
-	internal Node* SimplifyProduct(Node* u);		// Not written
+	internal Node* SimplifyProduct(Arena* arena, Node* u);		// Not written
 	//- Sum Simplification
 	// internal void SimplifySum(Node* u) {};			// Not written
 	//- Quotient Simplification

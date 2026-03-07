@@ -3,6 +3,8 @@
 #define TOKEN_BUF_SIZE 64
 #define CODEPOINT_BUF_SIZE 64
 
+#define ZeroNode(node) 	do {node->bin_left = node->bin_right = node->unary_child = node->nary_first = node->nary_next = node->reduced_to = node->reduced_from = &nil_node;} while(0)
+
 namespace expr {
 
 global U64 global_node_id = 1;
@@ -26,11 +28,11 @@ TokenArray::operator[](U64 i) const
 /////////////////////////////////
 //- Node Types
 
-NodePool::NodePool()
-	: arena(nullptr), first_free_node(nullptr)
-{
-	arena = ArenaAlloc();
-}
+// NodePool::NodePool()
+// 	: arena(nullptr), first_free_node(nullptr)
+// {
+// 	arena = ArenaAlloc();
+// }
 
 /////////////////////////////////
 //- Parser Types
@@ -41,7 +43,8 @@ Lexer::Lexer(String8 src)
 {}
 
 Parser::Parser(Arena* arena, String8 src)
-	: node_pool{}
+	// : node_pool{}
+	: arena{arena}
 	, lexer{src}
 	, token_cache{}
 	, current_token{}
@@ -82,35 +85,35 @@ NodeIsNil(Node* node)
 }
 
 // sb: node pool
-internal Node* 
-NodeAlloc(NodePool* node_pool)
-{
-	// grab top of free list
-	Node* result = node_pool->first_free_node;
-	if (result != nullptr)
-	{
-		// node_pool->first_free_node = node_pool->first_free_node->next;
-		SLLStackPop(node_pool->first_free_node);
-		MemoryZeroStruct(result);
-	}
+// internal Node* 
+// NodeAlloc(NodePool* node_pool)
+// {
+// 	// grab top of free list
+// 	Node* result = node_pool->first_free_node;
+// 	if (result != nullptr)
+// 	{
+// 		// node_pool->first_free_node = node_pool->first_free_node->free_next;
+// 		SLLStackPop(node_pool->first_free_node);
+// 		MemoryZeroStruct(result);
+// 	}
 
-	// if free list was empty, push a new node onto the arena
-	else
-	{
-		result = PushArray(node_pool->arena, Node, 1);
-	}
+// 	// if free list was empty, push a new node onto the arena
+// 	else
+// 	{
+// 		result = PushArray(node_pool->arena, Node, 1);
+// 	}
 
-	result->bin_left = result->bin_right = result->unary_child = result->nary_first = result->nary_next = &nil_node;
-	return result;
-}
+// 	result->bin_left = result->bin_right = result->unary_child = result->nary_first = result->nary_next = &nil_node;
+// 	return result;
+// }
 
-internal void NodeRelease(NodePool* node_pool, Node* node)
-{
-	// push onto free list
-	// node->next = node_pool->first_free_node;
-	// node_pool->first_free_node = node;
-	SLLStackPush(node_pool->first_free_node, node);
-}
+// internal void NodeRelease(NodePool* node_pool, Node* node)
+// {
+// 	// push onto free list
+// 	// node->free_next = node_pool->first_free_node;
+// 	// node_pool->first_free_node = node;
+// 	SLLStackPush(node_pool->first_free_node, node);
+// }
 
 ////////////////////////////////
 //- sb: Text -> Tokens Functions
@@ -303,7 +306,7 @@ ParsePrefixExpression(Parser* p)
 			String8 msg = PushStr8F(log_arena, "%S '%S' %S %llu", error_msg_start, error_msg_middle, error_msg_end, p->current_token.range.min()+1);
 			MsgListPush(log_arena, &p->msgs, result, MsgKind::Error, msg);
 			// create error node
-			result = NodeAlloc(&p->node_pool);
+			result = PushArray(p->arena, Node, 1); //result = NodeAlloc(&p->node_pool);
 			result->kind = NodeKind::ErrorMarker;
 		}
 		// implicit mult
@@ -333,8 +336,8 @@ ParseNumeric(Parser* parser)
 	Rng1U64 num_range = parser->current_token.range;
 	// NextToken(parser);
 
-	Node* result = NodeAlloc(&parser->node_pool);
-	result->bin_left = result->bin_right = result->unary_child = result->nary_first = result->nary_next = &nil_node;
+	Node* result = PushArray(parser->arena, Node, 1);//NodeAlloc(&parser->node_pool);
+	ZeroNode(result);
 
 	result->number = value;
 	result->id = global_node_id++;
@@ -361,8 +364,8 @@ ParseVariable(Parser* parser)
 	String8 var_name = Str8Range(src_start, src_opl);
 	// NextToken(parser);
 
-	Node* result = NodeAlloc(&parser->node_pool);
-	result->bin_left = result->bin_right = result->unary_child = result->nary_first = result->nary_next = &nil_node;
+	Node* result = PushArray(parser->arena, Node, 1); //NodeAlloc(&parser->node_pool);
+	ZeroNode(result);
 
 
 	result->name = var_name;
@@ -386,9 +389,8 @@ ParseUnary(Parser* p)
 
 	NextToken(p);
 
-	Node* result = NodeAlloc(&p->node_pool);
-
-	result->bin_left = result->bin_right = result->unary_child = result->nary_first = result->nary_next = &nil_node;
+	Node* result = PushArray(p->arena, Node, 1); // NodeAlloc(&p->node_pool);
+	ZeroNode(result);
 	
 	result->kind = NodeKind::UnaryOp;
 	result->un_ops = is_negative ? UnOpKind::Negate : UnOpKind::Positive;
@@ -423,7 +425,7 @@ ParseGroup(Parser* parser)
 internal Node* 
 ParseInfixExpression(Parser* parser, Node* left)
 {
-	Node* result = NodeAlloc(&parser->node_pool);
+	Node* result = PushArray(parser->arena, Node, 1);//NodeAlloc(&parser->node_pool);
 
 	result->num_operands = 2;
 
@@ -807,11 +809,7 @@ internal void DebugPrintNode(Node* node, U32 depth, char const* label)
 			printf("Unknown( kind=%d )\n", (U32)node->kind);		
 		} break;
 	}
-
-
-
 }
-
 
 }	// namespace expr
 

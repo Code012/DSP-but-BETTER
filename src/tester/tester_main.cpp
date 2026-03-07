@@ -20,7 +20,8 @@
 //- [h] root
 #include "base/base_inc.h"
 #include "os/os_inc.h"
-#include "parse/parse_inc.h"
+#include "expr/expr_parse.h"
+#include "ui/ui_inc.h"
 
 //- foreign includes
 #define CLAY_IMPLEMENTATION
@@ -32,7 +33,9 @@
 //- [cpp] root
 #include "base/base_inc.cpp"
 #include "os/os_inc.cpp"
-#include "parse/parse_inc.cpp"
+#include "expr/expr_parse.cpp"
+#include "ui/ui_inc.cpp"
+
 
 char const *groups[] = {
     "Bump",
@@ -225,6 +228,26 @@ DEFINE_TEST_G(TestNextToken, Algebra) {
     ScratchEnd(scratch);
 }
 
+struct NodeRenderPayload
+{
+    Node* node;
+    U32 line_index;
+};
+
+// void EmitNode(Arena* arena, Node* node, U32 line_index)
+// {
+//     NodeRenderPayload* payload = PushStruct(arena, NodeRenderPayload);
+//     payload->node = node;
+//     payload->line_index = line_index;
+
+//     CLAY({
+//         .custom = {
+//             .customData = payload
+//         }
+//     }) {
+//         CLAY_TEXT(NodeToString(node), textConfig);
+//     }
+// }
 
 internal void 
 EntryPoint(U64 argument_count, char** arguments) 
@@ -236,6 +259,9 @@ EntryPoint(U64 argument_count, char** arguments)
     {
         pass &= TestFixture::ExecuteTestGroup(group, TestFixture::Verbose);
     }
+
+
+
 }
 
 
