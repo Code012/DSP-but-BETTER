@@ -2,6 +2,15 @@
 #define BASE_MATH_HPP
 
 
+////////////////////////////////
+// Vector Types
+
+struct Vec2F32
+{
+    F32 x;
+    F32 y;
+};
+
 
 ////////////////////////////////
 // Range Types
@@ -45,6 +54,16 @@ struct Rng1S64
     S64& max() { return v[1]; }
 };
 
+// 2-range (rectangles)
+
+struct Rng2F32  // TODO(sb): overload index op to return vec2f32
+{
+    F32 x0;
+    F32 y0;
+    F32 x1;
+    F32 y1;
+};
+
 ////////////////////////////////
 // Range Ops
 
@@ -52,5 +71,7 @@ internal U64 Dim1U64(Rng1U64 r);
 
 internal S64 Dim1S64(Rng1S64 r);
 internal S64 DeltaS64(Rng1S64 r);
+
+
 
 #endif // BASE_MATH_HPP

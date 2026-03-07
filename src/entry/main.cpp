@@ -12,12 +12,13 @@
 //- Includes
 
 //- stl
-#include <map>
+#include <map>  
+#include <vector>   // TODO(sb): GET RID OF THIS WHEN DONE PROTOTYPING
 
 //- [h] root
 #include "base/base_inc.h"
 #include "os/os_inc.h"
-#include "expr/expr_inc.h"
+#include "expr/expr_parse.h"
 // #include "parse/parse_inc.h"
 // #include "algebra/algebra_inc.h"
 #include "ui/ui_inc.h"
@@ -38,7 +39,7 @@
 //- [cpp] root
 #include "base/base_inc.cpp"
 #include "os/os_inc.cpp"
-#include "expr/expr_inc.cpp"
+#include "expr/expr_parse.cpp"
 // #include "parse/parse_inc.cpp"
 // #include "algebra/algebra_inc.cpp"
 #include "ui/ui_inc.cpp"
@@ -128,11 +129,10 @@ EntryPoint(U64 argument_count, char** arguments)
 // -------------------------------------------------------------------------------------------------
 
         // Symbolic Algebra Calc
-
         // TODO(sb): Handle submit button pointer click too, its just enter for now
         if (submit)
         {
-            expr::Parser parser{scratch.arena, App::app_state->input_box.text};   
+            expr::Parser parser{App::app_state->solutions_arena, App::app_state->input_box.text};   
             expr::ParseResult parse_result = expr::ParseFromText(&parser, App::app_state->input_box.text);
             expr::DebugPrintParseResult(parse_result, App::app_state->input_box.text);
         
@@ -141,7 +141,7 @@ EntryPoint(U64 argument_count, char** arguments)
                 // TODO(sb): Display errors and warnings in ui
             }
 
-            expr::Result algebra_result = expr::SimplifyWithSteps(parse_result.root);
+            // expr::Result algebra_result = expr::SimplifyWithSteps(App::app_state->solutions_arena, parse_result.root);
             // algebra::PrintSteps(algebra_result.steps);
         }
 
@@ -169,34 +169,34 @@ EntryPoint(U64 argument_count, char** arguments)
         Vector2 mouse_position = GetMousePosition();
         Clay_SetPointerState(Clay_Vector2{ mouse_position.x, mouse_position.y }, IsMouseButtonDown(0) && !App::app_state->scrollbar_data.mouse_down);
         Clay_SetLayoutDimensions(Clay_Dimensions{(float)GetScreenWidth(), (float)GetScreenHeight() });
-        if (!IsMouseButtonDown(0))
-        {
-            App::app_state->scrollbar_data.mouse_down = false;
-        }
+        // if (!IsMouseButtonDown(0))
+        // {
+        //     App::app_state->scrollbar_data.mouse_down = false;
+        // }
 
-        if (IsMouseButtonDown(0) && !App::app_state->scrollbar_data.mouse_down && Clay_PointerOver(Clay_GetElementId(CLAY_STRING("SCROLLBAR"))))
-        {
-            Clay_ScrollContainerData scroll_container_data = Clay_GetScrollContainerData(Clay_GetElementId(CLAY_STRING("INPUT_BOX")));
-            App::app_state->scrollbar_data.click_origin = Clay_Vector2{mouse_position.x, mouse_position.y};
-            App::app_state->scrollbar_data.position_origin = *scroll_container_data.scrollPosition;
-            App::app_state->scrollbar_data.mouse_down = true;
-        }
-        else if (App::app_state->scrollbar_data.mouse_down)
-        {
-            Clay_ScrollContainerData scroll_container_data = Clay_GetScrollContainerData(Clay_GetElementId(CLAY_STRING("INPUT_BOX")));
-            if (scroll_container_data.contentDimensions.width > 0) {
-                Clay_Vector2 ratio = Clay_Vector2{
-                    scroll_container_data.contentDimensions.width / scroll_container_data.scrollContainerDimensions.width,
-                    scroll_container_data.contentDimensions.height / scroll_container_data.scrollContainerDimensions.height,
-                };
-                if (scroll_container_data.config.vertical) {
-                    scroll_container_data.scrollPosition->y = App::app_state->scrollbar_data.position_origin.y + (App::app_state->scrollbar_data.click_origin.y - mouse_position.y) * ratio.y;
-                }
-                if (scroll_container_data.config.horizontal) {
-                    scroll_container_data.scrollPosition->x = App::app_state->scrollbar_data.position_origin.x + (App::app_state->scrollbar_data.click_origin.x - mouse_position.x) * ratio.x;
-                }
-            }
-        }
+        // if (IsMouseButtonDown(0) && !App::app_state->scrollbar_data.mouse_down && Clay_PointerOver(Clay_GetElementId(CLAY_STRING("SCROLLBAR"))))
+        // {
+        //     Clay_ScrollContainerData scroll_container_data = Clay_GetScrollContainerData(Clay_GetElementId(CLAY_STRING("INPUT_BOX")));
+        //     App::app_state->scrollbar_data.click_origin = Clay_Vector2{mouse_position.x, mouse_position.y};
+        //     App::app_state->scrollbar_data.position_origin = *scroll_container_data.scrollPosition;
+        //     App::app_state->scrollbar_data.mouse_down = true;
+        // }
+        // else if (App::app_state->scrollbar_data.mouse_down)
+        // {
+        //     Clay_ScrollContainerData scroll_container_data = Clay_GetScrollContainerData(Clay_GetElementId(CLAY_STRING("INPUT_BOX")));
+        //     if (scroll_container_data.contentDimensions.width > 0) {
+        //         Clay_Vector2 ratio = Clay_Vector2{
+        //             scroll_container_data.contentDimensions.width / scroll_container_data.scrollContainerDimensions.width,
+        //             scroll_container_data.contentDimensions.height / scroll_container_data.scrollContainerDimensions.height,
+        //         };
+        //         if (scroll_container_data.config.vertical) {
+        //             scroll_container_data.scrollPosition->y = App::app_state->scrollbar_data.position_origin.y + (App::app_state->scrollbar_data.click_origin.y - mouse_position.y) * ratio.y;
+        //         }
+        //         if (scroll_container_data.config.horizontal) {
+        //             scroll_container_data.scrollPosition->x = App::app_state->scrollbar_data.position_origin.x + (App::app_state->scrollbar_data.click_origin.x - mouse_position.x) * ratio.x;
+        //         }
+        //     }
+        // }
 
         Clay_UpdateScrollContainers(true, Clay_Vector2{ mouse_wheel_delta.x, mouse_wheel_delta.y }, GetFrameTime());
 		
@@ -210,7 +210,8 @@ EntryPoint(U64 argument_count, char** arguments)
 
 	    // Compute layout
 	    Clay_BeginLayout();
-	    App::BuildUI();
+        expr::Node dummy{};
+	    App::BuildUI(&dummy);//result.root);
 		Clay_RenderCommandArray renderCommands = Clay_EndLayout();
 
 		// Render layout
@@ -227,6 +228,27 @@ EntryPoint(U64 argument_count, char** arguments)
         {
             RenderTextCursor(scratch.arena, &App::app_state->input_box, App::app_state->fonts);
         }
+
+        // check hovered and highlight
+        for (const auto& box : App::app_state->node_boxes)
+        {
+            if (Contains2F32(box.rect, {mouse_position.x, mouse_position.y})) 
+            {
+                // TODO(sb): see if rounded rect look good
+                F32 padding = 5;
+                Rectangle r = {box.rect.x0-padding, box.rect.y0-padding, 
+                    (box.rect.x1 - box.rect.x0) + padding*2, 
+                    (box.rect.y1 - box.rect.y0) + padding*2};
+                DrawRectangleRounded(r,
+                    0.5f,
+                    0,
+                    {255, 180, 80, 80});
+                DrawRectangleRoundedLinesEx(r, 0.5f, 0, 1, {255, 160, 40, 255});
+                break;
+            }
+        }
+
+
 		EndDrawing();
 	}
 	

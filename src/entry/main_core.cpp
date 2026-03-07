@@ -102,6 +102,13 @@ RenderTextCursor(Arena* arena, UI::TextEditState* state, Font* fonts)
 	ScratchEnd(scratch);
 }
 
+internal B32 Contains2F32(Rng2F32 r, Vec2F32 p)
+{
+	B32 result = (p.x >= r.x0 && p.x <= r.x1 && p.y >= r.y0 && p.y <= r.y1);
+	return result;
+}
+
+
 namespace App
 {
 
@@ -110,8 +117,8 @@ internal void Initialise(Arena* arena)
 	// initialise app state 
 	app_state = PushArray(arena, State, 1);
 	app_state->clay_arena = ArenaAlloc();
-	// app_state->string_arena = ArenaAlloc(KiB(64), true);
 	app_state->string_arena = ArenaAlloc(true);
+	app_state->solutions_arena = ArenaAlloc();
 	app_state->frame_arena = ArenaAlloc();
 	app_state->input_box_limit = INPUT_TEXT_OFFSET;
 	app_state->placeholder_text = Str8Lit("3y = 2(x + 2)");
@@ -156,7 +163,58 @@ internal void Initialise(Arena* arena)
 
 }
 
-internal void BuildUI()
+// internal 
+
+// internal void EmitNode(Node* n, U64 line_index, Clay_TextElementConfig* text_config)
+// {
+// 	NodeRenderPayload* payload = PushStruct(App::app_state->frame_arena, NodeRenderPayload);
+// 	payload->node = n;
+// 	payload->line_index = line_index;
+
+// 	CLAY({
+// 		.custom = {
+// 			.customData = payload;
+// 		}
+// 	}) {
+// 		CLAY_TEXT(NodeToString(node), text_config);
+// 	}
+// }
+
+// internal void EmitOperatorToken(Node* op_node, U64 line_index, Clay_TextElementConfig* text_config)
+// {
+// 	NodeRenderPayload* payload = PushStruct(App::app_state->frame_arena, NodeRenderPayload);
+// 	payload->node = op_node;
+// 	payload->line_index = line_index;
+
+// 	CLAY({
+// 		.custom = {
+// 			.customData = payload;
+// 		}
+// 	}) {
+// 		CLAY_TEXT(NodeKindToString(node->kind), text_config);
+// 	}
+// }
+
+// internal void EmitTree(Node* n, U64 line_index, Clay_TextElementConfig* text_config)
+// {
+// 	switch (n->kind)
+// 	{
+// 		case expr::NodeKind::NaryOp: {
+// 			for (Node* it = n->nary_first; !NodeIsNil(it); it = it->nary_next)
+// 			{
+// 				EmitTree(it, line_index, text_config);
+// 				if (!NodeIsNil(it->nary_next))
+// 					EmitOperatorToken(n, line_index, text_config);	// emitting op between children
+// 			}
+// 		} break;
+// 		default:
+// 			EmitNode(n, line_index);
+// 	}
+// }
+
+	
+
+internal void BuildUI(expr::Node* root)
 {
 	// TODO(me): Look at clay floating elements in docs for modals (settings window)
 	// colours
@@ -203,6 +261,71 @@ internal void BuildUI()
 		}) 
 		//- INNER_ROOT_TOP Children
 		{
+// -------------------------------------------------------------------------------------------------
+			//- OUTPUT_WINDOW
+			CLAY(CLAY_ID("OUTPUT_WINDOW"), {
+				.layout = {
+					.sizing = layout_expand,
+					.layoutDirection = CLAY_TOP_TO_BOTTOM,
+				}
+			})
+			//- OUTPUT_WINDOW Children
+			{
+// -------------------------------------------------------------------------------------------------
+				
+				NodeBox& box = app_state->node_boxes.emplace_back(NodeBox{});
+				box.step_index = 0; // dummy value 
+				CustomLayoutElement* custom = PushStruct(App::app_state->frame_arena, CustomLayoutElement);
+				expr::Node* dummy = PushStruct(App::app_state->frame_arena, expr::Node);
+				dummy->kind = expr::NodeKind::NaryOp;
+				box.node = dummy;
+
+				custom->type = CUSTOM_LAYOUT_ELEMENT_TYPE_EXPR_NODE;
+				custom->expr_node.node = dummy;
+				custom->expr_node.text = "2 * 3 * 4";
+				custom->expr_node.line_index = 0;
+				custom->expr_node.font_size = 24.0f;
+				custom->expr_node.letter_spacing = 0.0f;
+				custom->expr_node.font_id = 0;
+				custom->expr_node.colour = Clay_Color{0, 0, 0,255};
+				custom->expr_node.box = &box;
+
+				CLAY_AUTO_ID({
+					.custom = {
+						.customData = custom,
+					}
+				}) {
+					// CLAY_TEXT(CLAY_STRING("2 * 3 * 4"), CLAY_TEXT_CONFIG({
+                    // .textColor = payload->colour,
+                    // .fontId = FONT_ID_BODY_16,
+                    // .fontSize = 24,
+	                // }));
+				}
+
+				// NodeRenderPayload* payload2 = PushStruct(App::app_state->frame_arena, NodeRenderPayload);
+				// expr::Node* dummy2 = PushStruct(App::app_state->frame_arena, expr::Node);
+				// dummy2->kind = expr::NodeKind::NaryOp;
+
+				// payload2->node = dummy2;
+				// payload2->line_index = 0;
+				// payload2->font_size = 24.0f;
+				// payload2->letter_spacing = 0.0f;
+				// payload2->font_id = 0;
+				// payload2->colour = Clay_Color{0, 0, 0,255};
+
+				// CLAY_AUTO_ID({
+				// 	.custom = {
+				// 		.customData = payload2,
+				// 	}
+				// }) {
+				// 	CLAY_TEXT(CLAY_STRING("2 * 12"), CLAY_TEXT_CONFIG({
+                //     .textColor = payload2->colour,
+                //     .fontId = FONT_ID_BODY_16,
+                //     .fontSize = 24,
+	            //     }));
+				// }
+
+			}
 
 		};
 		//- INNER_ROOT_TOP END

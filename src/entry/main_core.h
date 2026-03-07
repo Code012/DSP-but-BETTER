@@ -99,11 +99,14 @@ struct ScrollBarData
 	B32 mouse_down;
 };
 
+
+
 struct State
 {	
 	// Permanent arenas
 	Arena* clay_arena;
 	Arena* string_arena;		// 1024 bytes for input text, rest for solutions text
+	Arena* solutions_arena;
 	// Per-frame scratch
 	Arena* frame_arena;
 
@@ -118,6 +121,8 @@ struct State
 	B32 need_placeholder;
 	ScrollBarData scrollbar_data;
 
+	std::vector<NodeBox> node_boxes;	// TODO(sb): replace vector when done prototyping
+
 	// TODO(me): cross-platform solution for paths, in windows msvc can embed into exe, in linux and mac can with #embed or can package into .App or .AppInstaller
 	// paths
 	// String8 data_directory_path
@@ -125,7 +130,7 @@ struct State
 
 	// Events
 	OS::EventList* events; // go on frame arena because raylib produces key events every frame
-	// App config struct?
+	// App config struct? See from cactus image viewer and this emacs-like editor repo you starred from clay discords
 };
 
 State* app_state = nullptr;
@@ -160,7 +165,7 @@ void HandleClayErrors(Clay_ErrorData errorData) {
 }
 
 internal void Initialise(Arena* arena);
-internal void BuildUI();
+internal void BuildUI(expr::Node* root);
 internal void Shutdown();
 
 inline Clay_String ClayStringFromString8(const String8& s)
@@ -171,4 +176,7 @@ inline Clay_String ClayStringFromString8(const String8& s)
 		reinterpret_cast<const char*>(s.str)
 		);
 }
+
+
+
 }	// namespace App

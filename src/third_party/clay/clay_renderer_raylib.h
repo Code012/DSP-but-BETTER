@@ -7,6 +7,15 @@
 #include "stdio.h"
 #include "stdlib.h"
 
+
+
+struct NodeBox
+{
+    expr::Node* node;
+    Rng2F32 rect;
+    U32 step_index;
+};
+
 #define CLAY_RECTANGLE_TO_RAYLIB_RECTANGLE(rectangle) Rectangle { .x = rectangle.x, .y = rectangle.y, .width = rectangle.width, .height = rectangle.height }
 #define CLAY_COLOR_TO_RAYLIB_COLOR(color) Color { .r = (unsigned char)roundf(color.r), .g = (unsigned char)roundf(color.g), .b = (unsigned char)roundf(color.b), .a = (unsigned char)roundf(color.a) }
 
@@ -15,6 +24,7 @@ Camera Raylib_camera;
 typedef enum
 {
     CUSTOM_LAYOUT_ELEMENT_TYPE_3D_MODEL,
+    CUSTOM_LAYOUT_ELEMENT_TYPE_EXPR_NODE,
 } CustomLayoutElementType;
 
 
@@ -28,11 +38,24 @@ typedef struct
 
 typedef struct
 {
+    expr::Node* node;
+    const char* text;
+    U32 line_index;
+    F32 font_size;
+    F32 letter_spacing;
+    S32 font_id;
+    Clay_Color colour;
+    NodeBox* box;
+} CustomLayoutElement_ExprNode;
+
+typedef struct
+{
     CustomLayoutElementType type;
     union {
         CustomLayoutElement_3DModel model;
+        CustomLayoutElement_ExprNode expr_node;
         // CustomLayoutElement_TextEdit text_edit;
-    } customData;
+    };
 } CustomLayoutElement;
 
 
@@ -251,16 +274,27 @@ void Clay_Raylib_Render(Clay_RenderCommandArray renderCommands, Font* fonts)
                 CustomLayoutElement *customElement = (CustomLayoutElement *)config->customData;
                 if (!customElement) continue;
                 switch (customElement->type) {
-                    case CUSTOM_LAYOUT_ELEMENT_TYPE_3D_MODEL: {
-                        Clay_BoundingBox rootBox = renderCommands.internalArray[0].boundingBox;
-                        float scaleValue = CLAY__MIN(CLAY__MIN(1, 768 / rootBox.height) * CLAY__MAX(1, rootBox.width / 1024), 1.5f);
-                        Ray positionRay = GetScreenToWorldPointWithZDistance(Vector2 { renderCommand->boundingBox.x + renderCommand->boundingBox.width / 2, renderCommand->boundingBox.y + (renderCommand->boundingBox.height / 2) + 20 }, Raylib_camera, (int)roundf(rootBox.width), (int)roundf(rootBox.height), 140);
-                        BeginMode3D(Raylib_camera);
-                            DrawModel(customElement->customData.model.model, positionRay.position, customElement->customData.model.scale * scaleValue, WHITE);        // Draw 3d model with texture
-                        EndMode3D();
+                    // case CUSTOM_LAYOUT_ELEMENT_TYPE_3D_MODEL: {
+                    //     Clay_BoundingBox rootBox = renderCommands.internalArray[0].boundingBox;
+                    //     float scaleValue = CLAY__MIN(CLAY__MIN(1, 768 / rootBox.height) * CLAY__MAX(1, rootBox.width / 1024), 1.5f);
+                    //     Ray positionRay = GetScreenToWorldPointWithZDistance(Vector2 { renderCommand->boundingBox.x + renderCommand->boundingBox.width / 2, renderCommand->boundingBox.y + (renderCommand->boundingBox.height / 2) + 20 }, Raylib_camera, (int)roundf(rootBox.width), (int)roundf(rootBox.height), 140);
+                    //     BeginMode3D(Raylib_camera);
+                    //         DrawModel(customElement->customData.model.model, positionRay.position, customElement->customData.model.scale * scaleValue, WHITE);        // Draw 3d model with texture
+                    //     EndMode3D();
+                    //     break;
+                    // }
+                    case CUSTOM_LAYOUT_ELEMENT_TYPE_EXPR_NODE: {
+
+                        CustomLayoutElement_ExprNode payload = (CustomLayoutElement_ExprNode)customElement->expr_node;
+                        DrawTextEx(fonts[payload.font_id], payload.text, Vector2{renderCommand->boundingBox.x, renderCommand->boundingBox.y}, payload.font_size, payload.letter_spacing, CLAY_COLOR_TO_RAYLIB_COLOR(payload.colour));
+                        // TODO(sb): Add LRU cache for font measurement
+                        Vector2 size = MeasureTextEx(fonts[payload.font_id], payload.text, payload.font_size, payload.letter_spacing); 
+                        payload.box->rect.x0 = renderCommand->boundingBox.x;
+                        payload.box->rect.y0 = renderCommand->boundingBox.y;
+                        payload.box->rect.x1 = renderCommand->boundingBox.x + size.x;
+                        payload.box->rect.y1 = renderCommand->boundingBox.y + size.y;
                         break;
                     }
-                    
                     
                     default: break;
                 }
