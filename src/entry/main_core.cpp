@@ -37,7 +37,53 @@
 //     }
 // }
 
-internal inline Clay_Dimensions My_MeasureText(Clay_StringSlice text, Clay_TextElementConfig *config, void *userData) {
+// TODO(sb): make this iterative
+internal String8List* BuildStringList(Arena* arena, expr::Node* node, String8List* list)
+{
+	
+	using namespace expr;
+
+
+	switch (node->kind)
+	{
+		case NodeKind::Number: {
+			Str8ListPushF(arena, list, "%.2f", node->number);
+		} break;
+		case NodeKind::BinaryOp : {
+			if (node->bin_ops == BinOpKind::Minus)
+			BuildStringList(arena, node->bin_left, list);
+			Str8ListPushF(arena, list, "-");
+			BuildStringList(arena, node->bin_right, list);
+
+		} break;
+	};
+	
+	return list;
+}
+
+internal String8 String8FromNode(Arena* arena, expr::Node* node)
+{
+	String8List list{};
+	String8 result{};
+
+	BuildStringList(arena, node, &list);
+	result = Str8ListJoin(arena, &list);
+
+	return result;
+
+}
+
+internal char* CstrFromNode(Arena* arena, expr::Node* node)
+{
+	ArenaTemp scratch = ScratchBegin(0, 0);
+
+	String8 s = String8FromNode(scratch.arena, node);	
+	char* result = CStrFromStr8(arena, s);
+	ScratchEnd(scratch);
+	return result;
+}
+
+internal Clay_Dimensions My_MeasureText(Clay_StringSlice text, Clay_TextElementConfig *config, void *userData) {
 	ArenaTemp scratch = ScratchBegin(0, 0);
     U16 font_size = config->fontSize;
     if (font_size == 0)
@@ -106,6 +152,60 @@ internal B32 Contains2F32(Rng2F32 r, Vec2F32 p)
 {
 	B32 result = (p.x >= r.x0 && p.x <= r.x1 && p.y >= r.y0 && p.y <= r.y1);
 	return result;
+}
+
+// TODO(sb): incorporate step_index too or line_index
+internal void EmitToken(expr::Node* node, char const* token_str)
+{
+	NodeBox& box = App::app_state->node_boxes.emplace_back(NodeBox{});
+	box.step_index = 0; // dummy value 
+	box.node = node;
+	
+	CustomLayoutElement* custom = PushStruct(App::app_state->frame_arena, CustomLayoutElement);
+
+	custom->type = CUSTOM_LAYOUT_ELEMENT_TYPE_EXPR_NODE;
+	custom->expr_node.node = node;
+	custom->expr_node.text = token_str;
+	custom->expr_node.line_index = 0;
+	custom->expr_node.font_size = 24.0f;
+	custom->expr_node.letter_spacing = 0.0f;
+	custom->expr_node.font_id = 0;
+	custom->expr_node.colour = Clay_Color{0, 0, 0,255};
+	custom->expr_node.box = &box;
+
+	Vector2 size = MeasureTextEx(App::app_state->fonts[0], token_str, custom->expr_node.font_size, custom->expr_node.letter_spacing); // TODO(sb): hardcoded font id fix
+
+	CLAY_AUTO_ID({
+		.layout = {
+			.sizing = {
+				.width = size.x + 20,
+				.height = size.y,
+			},
+		},
+		.custom = {
+			.customData = custom,
+		}
+	}) ;
+}
+
+internal void RenderNode(expr::Node* node, U32 step_index)
+{
+	using namespace expr;
+	switch (node->kind)
+	{
+		case NodeKind::Number: {
+			EmitToken(node, CstrFromNode(App::app_state->string_arena, node));
+		} break;
+
+		case NodeKind::BinaryOp: {
+			if (node->bin_ops == BinOpKind::Minus)
+			{
+				RenderNode(node->bin_left, step_index);
+				EmitToken(node, "-");
+				RenderNode(node->bin_right, step_index);
+			}
+		} break;
+	}
 }
 
 
@@ -266,29 +366,97 @@ internal void BuildUI(expr::Node* root)
 			CLAY(CLAY_ID("OUTPUT_WINDOW"), {
 				.layout = {
 					.sizing = layout_expand,
+					.childAlignment = {
+						.x = CLAY_ALIGN_X_CENTER,
+						.y = CLAY_ALIGN_Y_CENTER,
+					},
 					.layoutDirection = CLAY_TOP_TO_BOTTOM,
 				}
 			})
 			//- OUTPUT_WINDOW Children
 			{
 // -------------------------------------------------------------------------------------------------
+				app_state->node_boxes.clear();
 				
-				NodeBox& box = app_state->node_boxes.emplace_back(NodeBox{});
-				box.step_index = 0; // dummy value 
+				// Print using root node, however get bounding boxes for each token
+				// nodes
+				expr::Node* sub_node  = PushStruct(app_state->frame_arena, expr::Node);
+				expr::Node* num_node1 = PushStruct(app_state->frame_arena, expr::Node);
+				expr::Node* num_node2 = PushStruct(app_state->frame_arena, expr::Node);
+
+				sub_node->bin_left = num_node1;
+				sub_node->bin_right = num_node2;
+				sub_node->bin_ops = expr::BinOpKind::Minus;
+				sub_node->kind = expr::NodeKind::BinaryOp;
+
+				num_node1->number = 2.0;
+				num_node1->kind = expr::NodeKind::Number;
+				num_node2->number = 4.0;
+				num_node2->kind = expr::NodeKind::Number;
+
+				CLAY(CLAY_ID("OUTPUT_LINE"), {
+				.layout = {
+					.sizing = { .width = CLAY_SIZING_GROW(), .height = 50},
+					// .childAlignment = {
+					// 	.x = CLAY_ALIGN_X_CENTER,
+					// 	.y = CLAY_ALIGN_Y_CENTER,
+					// },
+					.layoutDirection = CLAY_LEFT_TO_RIGHT,
+				}
+			})
+			{
+				RenderNode(sub_node, 0); // NOTE(sb): the line_indez is hard coded but in the for loop it will be i
+			}
+
+#if 0
+				NodeBox& sub_box = app_state->node_boxes.emplace_back(NodeBox{});
+				sub_box.step_index = 0; // dummy value 
+				sub_box.node = sub_node;
+				
 				CustomLayoutElement* custom = PushStruct(App::app_state->frame_arena, CustomLayoutElement);
-				expr::Node* dummy = PushStruct(App::app_state->frame_arena, expr::Node);
-				dummy->kind = expr::NodeKind::NaryOp;
-				box.node = dummy;
 
 				custom->type = CUSTOM_LAYOUT_ELEMENT_TYPE_EXPR_NODE;
-				custom->expr_node.node = dummy;
-				custom->expr_node.text = "2 * 3 * 4";
+				custom->expr_node.node = sub_node;
+				custom->expr_node.text = CstrFromNode(app_state->string_arena, sub_node);
 				custom->expr_node.line_index = 0;
 				custom->expr_node.font_size = 24.0f;
 				custom->expr_node.letter_spacing = 0.0f;
 				custom->expr_node.font_id = 0;
 				custom->expr_node.colour = Clay_Color{0, 0, 0,255};
-				custom->expr_node.box = &box;
+				custom->expr_node.box = &sub_box;
+				// num node 1
+				NodeBox& num1_box = app_state->node_boxes.emplace_back(NodeBox{});
+				num1_box.step_index = 0; // dummy value 
+				num1_box.node = num_node1;
+				
+				custom = PushStruct(App::app_state->frame_arena, CustomLayoutElement);
+
+				custom->type = CUSTOM_LAYOUT_ELEMENT_TYPE_EXPR_NODE;
+				custom->expr_node.node = num_node1;
+				custom->expr_node.text = CstrFromNode(app_state->string_arena, num_node1);
+				custom->expr_node.line_index = 0;
+				custom->expr_node.font_size = 24.0f;
+				custom->expr_node.letter_spacing = 0.0f;
+				custom->expr_node.font_id = 0;
+				custom->expr_node.colour = Clay_Color{0, 0, 0,255};
+				custom->expr_node.box = &num1_box;
+
+				// num node 2
+				NodeBox& num2_box = app_state->node_boxes.emplace_back(NodeBox{});
+				num2_box.step_index = 0; // dummy value 
+				num2_box.node = num_node1;
+				
+				custom = PushStruct(App::app_state->frame_arena, CustomLayoutElement);
+
+				custom->type = CUSTOM_LAYOUT_ELEMENT_TYPE_EXPR_NODE;
+				custom->expr_node.node = num_node2;
+				custom->expr_node.text = CstrFromNode(app_state->string_arena, num_node2);
+				custom->expr_node.line_index = 0;
+				custom->expr_node.font_size = 24.0f;
+				custom->expr_node.letter_spacing = 0.0f;
+				custom->expr_node.font_id = 0;
+				custom->expr_node.colour = Clay_Color{0, 0, 0,255};
+				custom->expr_node.box = &num2_box;
 
 				CLAY_AUTO_ID({
 					.custom = {
@@ -302,6 +470,7 @@ internal void BuildUI(expr::Node* root)
 	                // }));
 				}
 
+#endif
 				// NodeRenderPayload* payload2 = PushStruct(App::app_state->frame_arena, NodeRenderPayload);
 				// expr::Node* dummy2 = PushStruct(App::app_state->frame_arena, expr::Node);
 				// dummy2->kind = expr::NodeKind::NaryOp;

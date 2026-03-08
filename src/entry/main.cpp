@@ -68,6 +68,7 @@ EntryPoint(U64 argument_count, char** arguments)
     ArenaTemp scratch = ScratchBegin(nullptr, 0);   // PROGRAM STATE lives on scratch
         
 	App::Initialise(scratch.arena);
+    App::app_state->node_boxes.reserve(256); 
 
     // TODO(sb): autoscroll
     // S64 old_autoscroll_bounds = 0;
