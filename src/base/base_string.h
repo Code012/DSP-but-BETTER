@@ -93,9 +93,11 @@ internal B32 LowerFromChar(U8 c);
 
 
 ////////////////////////////////
-//- C-String Measurement
+//- C-String 
 
 internal U64 CString8Length(U8 *cstr);
+
+internal char* CStrFromStr8(Arena* arena, String8 str);
 
 ////////////////////////////////
 //- String Constructors
@@ -134,11 +136,14 @@ internal String8 PushStr8F(Arena* arena, char const* fmt, ...);
 ////////////////////////////////
 //- String List Construction Functions
 
+internal String8Node* Str8ListPush(Arena* arena, String8List* list, String8 string);
+internal String8Node* Str8ListPushF(Arena* arena, String8List* list, char const* fmt, ...);
+
 ////////////////////////////////
 //- String Splitting & Joining
 
 // internal String8List Str8Split(Arena *arena, String8 string, U8 *split_chars, U64 split_char_count, StringSplitFlags flags, )
-internal String8  Str8ListJoin(Arena *arena, String8List *list, StringJoin *optional_params);
+internal String8  Str8ListJoin(Arena *arena, String8List *list, StringJoin *optional_params=nullptr);
 
 ////////////////////////////////
 //- UTF-8 Decoding/Encoding

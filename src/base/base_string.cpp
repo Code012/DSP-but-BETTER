@@ -74,7 +74,7 @@ LowerFromChar(U8 c)
 
 
 ////////////////////////////////
-//- C-String Measurement
+//- C-String
 
 internal U64 
 CString8Length(U8 *cstr)
@@ -88,6 +88,16 @@ CString8Length(U8 *cstr)
 	}
 	return length;
 }
+
+internal char* 
+CStrFromStr8(Arena* arena, String8 str)
+{
+	char* result = PushArray(arena, char, str.size+1);
+	MemoryCopy(result, str.str, str.size);
+	result[str.size] = '\0';
+	return result;
+}
+
 
 ////////////////////////////////
 //- String Constructors
@@ -221,6 +231,28 @@ PushStr8F(Arena* arena, char const* fmt, ...)
 
 ////////////////////////////////
 //- String List Construction Functions
+
+internal String8Node* 
+Str8ListPush(Arena* arena, String8List* list, String8 string)
+{
+	String8Node* node = PushArrayNoZero(arena, String8Node, 1);
+
+	SLLQueuePush(list->first, list->last, node);
+	list->node_count += 1;
+	list->total_size += string.size;
+	node->string = string;
+	return node;
+}
+internal String8Node* 
+Str8ListPushF(Arena* arena, String8List* list, char const* fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	String8 string = PushStr8FV(arena, fmt, args);
+	String8Node* result = Str8ListPush(arena, list, string);
+	va_end(args);
+	return result;
+}
 
 
 ////////////////////////////////
