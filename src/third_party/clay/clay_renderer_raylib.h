@@ -1,18 +1,19 @@
 // #include "third_party/clay/clay.h" //GET RID OF THIS
 
-#include "third_party/raylib/include/raylib.h"
-#include "third_party/raylib/include/raymath.h"
 #include "stdint.h"
 #include "string.h"
 #include "stdio.h"
 #include "stdlib.h"
-
+#include "third_party/raylib/include/raylib.h"
+#include "third_party/raylib/include/raymath.h"
 
 
 struct NodeBox
 {
     expr::Node* node;
-    Rng2F32 rect;
+    Rng2F32 rect;           // true bounds
+    Rng2F32 highlight_rect;
+    Rng2F32 hit_rect;       //  
     U32 step_index;
 };
 
@@ -38,6 +39,7 @@ typedef struct
 
 typedef struct
 {
+    std::vector<NodeBox>* node_boxes;
     expr::Node* node;
     const char* text;
     U32 line_index;
@@ -45,7 +47,7 @@ typedef struct
     F32 letter_spacing;
     S32 font_id;
     Clay_Color colour;
-    NodeBox* box;
+    U32 node_box_index;
 } CustomLayoutElement_ExprNode;
 
 typedef struct
@@ -289,10 +291,11 @@ void Clay_Raylib_Render(Clay_RenderCommandArray renderCommands, Font* fonts)
                         DrawTextEx(fonts[payload.font_id], payload.text, Vector2{renderCommand->boundingBox.x, renderCommand->boundingBox.y}, payload.font_size, payload.letter_spacing, CLAY_COLOR_TO_RAYLIB_COLOR(payload.colour));
                         // TODO(sb): Add LRU cache for font measurement
                         Vector2 size = MeasureTextEx(fonts[payload.font_id], payload.text, payload.font_size, payload.letter_spacing); 
-                        payload.box->rect.x0 = renderCommand->boundingBox.x;
-                        payload.box->rect.y0 = renderCommand->boundingBox.y;
-                        payload.box->rect.x1 = renderCommand->boundingBox.x + size.x;
-                        payload.box->rect.y1 = renderCommand->boundingBox.y + size.y;
+                        NodeBox& box = (*payload.node_boxes)[payload.node_box_index];
+                        box.rect.x0 = renderCommand->boundingBox.x;
+                        box.rect.y0 = renderCommand->boundingBox.y;
+                        box.rect.x1 = renderCommand->boundingBox.x + size.x;
+                        box.rect.y1 = renderCommand->boundingBox.y + size.y;
                         break;
                     }
                     

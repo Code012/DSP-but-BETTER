@@ -1,7 +1,6 @@
 /*  date = December 09th 2025 06:15 PM */ 
 
 internal void RenderTextCursor(Arena* arena, UI::TextEditState* state, Font* fonts);
-internal void EnsureCursorVisible(UI::TextEditState* state, Font font, float box_width);
 
 #define INPUT_TEXT_OFFSET 1024	// fits up to 200 glyphs assuming 4-byte UTF-8 codepoints (worst case)
 #define CLUSTER_LIMIT 200 		// not yet used
@@ -121,7 +120,11 @@ struct State
 	B32 need_placeholder;
 	ScrollBarData scrollbar_data;
 
+	expr::Node* root_node;
+
 	std::vector<NodeBox> node_boxes;	// TODO(sb): replace vector when done prototyping
+	// std::vector<NodeBox> highlight_boxes;
+	std::unordered_map<U64, U32> node_boxes_cache;	// node id -> node box vector index
 
 	// TODO(me): cross-platform solution for paths, in windows msvc can embed into exe, in linux and mac can with #embed or can package into .App or .AppInstaller
 	// paths
@@ -165,7 +168,7 @@ void HandleClayErrors(Clay_ErrorData errorData) {
 }
 
 internal void Initialise(Arena* arena);
-internal void BuildUI(expr::Node* root);
+internal void BuildUI();
 internal void Shutdown();
 
 inline Clay_String ClayStringFromString8(const String8& s)

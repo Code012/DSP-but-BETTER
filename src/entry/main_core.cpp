@@ -1,42 +1,6 @@
 /*  date = December 09th 2025 06:15 PM */
 
 
-// internal void 
-// EnsureCursorVisible(UI::TextEditState* state, Font font, float box_width)
-// {
-//     // Measure text up to cursor
-//     char temp_buffer[1024];
-//     S64 cursor_pos = ClampTop(state->cursor, state->text.size);
-    
-//     memcpy(temp_buffer, state->text.str, cursor_pos);
-//     temp_buffer[cursor_pos] = '\0';
-    
-//     Vector2 cursor_text_size = MeasureTextEx(font, temp_buffer, 24.0f, 0.0f);
-//     float cursor_x_absolute = cursor_text_size.x; // Position in the full text
-    
-//     // Calculate cursor position relative to the visible area
-//     float cursor_x_relative = cursor_x_absolute - state->scroll_offset_x;
-    
-    
-//     // Cursor went off the right edge - scroll right
-//     if (cursor_x_relative > box_width )
-//     {
-//         state->scroll_offset_x = cursor_x_absolute - (box_width + 10) ;
-//     }
-    
-//     // Cursor went off the left edge - scroll left
-//     if (cursor_x_relative < 0)
-//     {
-//         state->scroll_offset_x = cursor_x_absolute ;
-//     }
-    
-//     // Don't scroll past the beginning
-//     if (state->scroll_offset_x < 0)
-//     {
-//         state->scroll_offset_x = 0;
-//     }
-// }
-
 // TODO(sb): make this iterative
 internal String8List* BuildStringList(Arena* arena, expr::Node* node, String8List* list)
 {
@@ -154,16 +118,28 @@ internal B32 Contains2F32(Rng2F32 r, Vec2F32 p)
 	return result;
 }
 
+internal void InsertNode(NodeBox* node_box)
+{
+	U64 node_id = node_box->node->id;
+	U32 index = App::app_state->node_boxes.size()-1;
+	const bool ok = App::app_state->node_boxes_cache.insert({node_id, index}).second;
+	Assert(ok && "insert node failed in InsertNode");
+}
+
+
 // TODO(sb): incorporate step_index too or line_index
 internal void EmitToken(expr::Node* node, char const* token_str)
 {
-	NodeBox& box = App::app_state->node_boxes.emplace_back(NodeBox{});
+	App::app_state->node_boxes.emplace_back(NodeBox{});
+	NodeBox& box = App::app_state->node_boxes.back();
 	box.step_index = 0; // dummy value 
 	box.node = node;
+	InsertNode(&box);
 	
 	CustomLayoutElement* custom = PushStruct(App::app_state->frame_arena, CustomLayoutElement);
 
 	custom->type = CUSTOM_LAYOUT_ELEMENT_TYPE_EXPR_NODE;
+	custom->expr_node.node_boxes = &App::app_state->node_boxes;
 	custom->expr_node.node = node;
 	custom->expr_node.text = token_str;
 	custom->expr_node.line_index = 0;
@@ -171,14 +147,14 @@ internal void EmitToken(expr::Node* node, char const* token_str)
 	custom->expr_node.letter_spacing = 0.0f;
 	custom->expr_node.font_id = 0;
 	custom->expr_node.colour = Clay_Color{0, 0, 0,255};
-	custom->expr_node.box = &box;
+	custom->expr_node.node_box_index = App::app_state->node_boxes.size()-1;
 
 	Vector2 size = MeasureTextEx(App::app_state->fonts[0], token_str, custom->expr_node.font_size, custom->expr_node.letter_spacing); // TODO(sb): hardcoded font id fix
 
 	CLAY_AUTO_ID({
 		.layout = {
 			.sizing = {
-				.width = size.x + 20,
+				.width = size.x ,
 				.height = size.y,
 			},
 		},
@@ -194,7 +170,7 @@ internal void RenderNode(expr::Node* node, U32 step_index)
 	switch (node->kind)
 	{
 		case NodeKind::Number: {
-			EmitToken(node, CstrFromNode(App::app_state->string_arena, node));
+			EmitToken(node, CstrFromNode(App::app_state->solutions_arena, node));
 		} break;
 
 		case NodeKind::BinaryOp: {
@@ -222,6 +198,10 @@ internal void Initialise(Arena* arena)
 	app_state->frame_arena = ArenaAlloc();
 	app_state->input_box_limit = INPUT_TEXT_OFFSET;
 	app_state->placeholder_text = Str8Lit("3y = 2(x + 2)");
+
+	// stl
+	new(&app_state->node_boxes) std::vector<NodeBox>();
+	new(&app_state->node_boxes_cache) std::unordered_map<U64, U32>();
 
 	// initialise clay and raylib
 	EnableEventWaiting();
@@ -314,7 +294,7 @@ internal void Initialise(Arena* arena)
 
 	
 
-internal void BuildUI(expr::Node* root)
+internal void BuildUI()
 {
 	// TODO(me): Look at clay floating elements in docs for modals (settings window)
 	// colours
@@ -376,124 +356,25 @@ internal void BuildUI(expr::Node* root)
 			//- OUTPUT_WINDOW Children
 			{
 // -------------------------------------------------------------------------------------------------
-				app_state->node_boxes.clear();
-				
-				// Print using root node, however get bounding boxes for each token
-				// nodes
-				expr::Node* sub_node  = PushStruct(app_state->frame_arena, expr::Node);
-				expr::Node* num_node1 = PushStruct(app_state->frame_arena, expr::Node);
-				expr::Node* num_node2 = PushStruct(app_state->frame_arena, expr::Node);
-
-				sub_node->bin_left = num_node1;
-				sub_node->bin_right = num_node2;
-				sub_node->bin_ops = expr::BinOpKind::Minus;
-				sub_node->kind = expr::NodeKind::BinaryOp;
-
-				num_node1->number = 2.0;
-				num_node1->kind = expr::NodeKind::Number;
-				num_node2->number = 4.0;
-				num_node2->kind = expr::NodeKind::Number;
-
-				CLAY(CLAY_ID("OUTPUT_LINE"), {
-				.layout = {
-					.sizing = { .width = CLAY_SIZING_GROW(), .height = 50},
-					// .childAlignment = {
-					// 	.x = CLAY_ALIGN_X_CENTER,
-					// 	.y = CLAY_ALIGN_Y_CENTER,
-					// },
-					.layoutDirection = CLAY_LEFT_TO_RIGHT,
-				}
-			})
-			{
-				RenderNode(sub_node, 0); // NOTE(sb): the line_indez is hard coded but in the for loop it will be i
-			}
-
-#if 0
-				NodeBox& sub_box = app_state->node_boxes.emplace_back(NodeBox{});
-				sub_box.step_index = 0; // dummy value 
-				sub_box.node = sub_node;
-				
-				CustomLayoutElement* custom = PushStruct(App::app_state->frame_arena, CustomLayoutElement);
-
-				custom->type = CUSTOM_LAYOUT_ELEMENT_TYPE_EXPR_NODE;
-				custom->expr_node.node = sub_node;
-				custom->expr_node.text = CstrFromNode(app_state->string_arena, sub_node);
-				custom->expr_node.line_index = 0;
-				custom->expr_node.font_size = 24.0f;
-				custom->expr_node.letter_spacing = 0.0f;
-				custom->expr_node.font_id = 0;
-				custom->expr_node.colour = Clay_Color{0, 0, 0,255};
-				custom->expr_node.box = &sub_box;
-				// num node 1
-				NodeBox& num1_box = app_state->node_boxes.emplace_back(NodeBox{});
-				num1_box.step_index = 0; // dummy value 
-				num1_box.node = num_node1;
-				
-				custom = PushStruct(App::app_state->frame_arena, CustomLayoutElement);
-
-				custom->type = CUSTOM_LAYOUT_ELEMENT_TYPE_EXPR_NODE;
-				custom->expr_node.node = num_node1;
-				custom->expr_node.text = CstrFromNode(app_state->string_arena, num_node1);
-				custom->expr_node.line_index = 0;
-				custom->expr_node.font_size = 24.0f;
-				custom->expr_node.letter_spacing = 0.0f;
-				custom->expr_node.font_id = 0;
-				custom->expr_node.colour = Clay_Color{0, 0, 0,255};
-				custom->expr_node.box = &num1_box;
-
-				// num node 2
-				NodeBox& num2_box = app_state->node_boxes.emplace_back(NodeBox{});
-				num2_box.step_index = 0; // dummy value 
-				num2_box.node = num_node1;
-				
-				custom = PushStruct(App::app_state->frame_arena, CustomLayoutElement);
-
-				custom->type = CUSTOM_LAYOUT_ELEMENT_TYPE_EXPR_NODE;
-				custom->expr_node.node = num_node2;
-				custom->expr_node.text = CstrFromNode(app_state->string_arena, num_node2);
-				custom->expr_node.line_index = 0;
-				custom->expr_node.font_size = 24.0f;
-				custom->expr_node.letter_spacing = 0.0f;
-				custom->expr_node.font_id = 0;
-				custom->expr_node.colour = Clay_Color{0, 0, 0,255};
-				custom->expr_node.box = &num2_box;
-
-				CLAY_AUTO_ID({
-					.custom = {
-						.customData = custom,
+				if (App::app_state->root_node)
+				{
+					App::app_state->node_boxes.clear();
+            		App::app_state->node_boxes_cache.clear();
+					CLAY(CLAY_ID("OUTPUT_LINE"), {
+					.layout = {
+						.sizing = { .width = CLAY_SIZING_GROW(), .height = 50},
+						// .childAlignment = {
+						// 	.x = CLAY_ALIGN_X_CENTER,
+						// 	.y = CLAY_ALIGN_Y_CENTER,
+						// },
+						.childGap = 10,
+						.layoutDirection = CLAY_LEFT_TO_RIGHT,
 					}
-				}) {
-					// CLAY_TEXT(CLAY_STRING("2 * 3 * 4"), CLAY_TEXT_CONFIG({
-                    // .textColor = payload->colour,
-                    // .fontId = FONT_ID_BODY_16,
-                    // .fontSize = 24,
-	                // }));
+					})
+					{
+						RenderNode(App::app_state->root_node, 0); // NOTE(sb): the line_indez is hard coded but in the for loop it will be i
+					}
 				}
-
-#endif
-				// NodeRenderPayload* payload2 = PushStruct(App::app_state->frame_arena, NodeRenderPayload);
-				// expr::Node* dummy2 = PushStruct(App::app_state->frame_arena, expr::Node);
-				// dummy2->kind = expr::NodeKind::NaryOp;
-
-				// payload2->node = dummy2;
-				// payload2->line_index = 0;
-				// payload2->font_size = 24.0f;
-				// payload2->letter_spacing = 0.0f;
-				// payload2->font_id = 0;
-				// payload2->colour = Clay_Color{0, 0, 0,255};
-
-				// CLAY_AUTO_ID({
-				// 	.custom = {
-				// 		.customData = payload2,
-				// 	}
-				// }) {
-				// 	CLAY_TEXT(CLAY_STRING("2 * 12"), CLAY_TEXT_CONFIG({
-                //     .textColor = payload2->colour,
-                //     .fontId = FONT_ID_BODY_16,
-                //     .fontSize = 24,
-	            //     }));
-				// }
-
 			}
 
 		};
@@ -649,6 +530,9 @@ internal void BuildUI(expr::Node* root)
 
 internal void Shutdown()
 {
+	// TODO(sb): see if its even worth callnig destructors on program close up, why don't we just let the OS claim that memory back
+	app_state->node_boxes.~vector();
+	app_state->node_boxes_cache.~unordered_map();
 	Clay_Raylib_Close();
 }
 
