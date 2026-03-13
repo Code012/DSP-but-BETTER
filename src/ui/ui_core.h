@@ -3,6 +3,9 @@
 #ifndef UI_CORE_H
 #define UI_CORE_H
 
+
+
+
 namespace UI
 {
 
@@ -46,11 +49,20 @@ struct TextAction
 	U32 codepoint;
 };
 
+struct NodeBox
+{
+    expr::Node* node;
+    Rng2F32 rect;
+    U32 step_index;
+};
+
+// Text Edit
 internal TextAction TextActionFromEvent(OS::Event* event);
 internal TextOp TextOpFromStateAndAction(Arena* arena, String8 string, TextEditState* state, TextAction* action);
 
 internal void ReplaceTextRange(String8& buffer, Rng1S64 replace_range, String8 replace_string, S64 new_buffer_size);
 internal void ApplyTextOp(TextEditState* state, TextOp* op);
+
 
 // helpers
 

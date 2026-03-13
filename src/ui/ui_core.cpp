@@ -245,6 +245,7 @@ ApplyTextOp(TextEditState* state, TextOp* op)
 }
 
 
+
 internal S64 
 WordScan(String8 s, S64 cursor , S64 delta)
 {
