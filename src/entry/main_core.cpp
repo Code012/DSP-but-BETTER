@@ -118,23 +118,39 @@ internal B32 Contains2F32(Rng2F32 r, Vec2F32 p)
 	return result;
 }
 
-internal void InsertNode(NodeBox* node_box)
-{
-	U64 node_id = node_box->node->id;
-	U32 index = App::app_state->node_boxes.size()-1;
-	const bool ok = App::app_state->node_boxes_cache.insert({node_id, index}).second;
-	Assert(ok && "insert node failed in InsertNode");
-}
+// internal NodeBox& FindBoxFromNode(expr::Node* node)
+// {
+// 	// for (auto& box : App::app_state->node_boxes)
+// 	// {
+// 	// 	if (node == box.node)
+// 	// 		return box;
+// 	// }
+// 	// Assert(false && "no nodebox found for node");
+// 	auto it = app_state->node_boxes_cache.find(node->id);	 //FIX THIS
+//     Assert(it != app_state->node_boxes_cache.end() && "node not found in cache");
+//     U32 node_boxes_index = it->second;
+//     NodeBox& node_box = app_state->node_boxes[node_boxes_index];
+// }
+
+// internal void InsertNode(NodeBox* node_box, U64 key)
+// {
+// 	U32 index = App::app_state->node_boxes.size()-1;
+// 	const bool ok = App::app_state->node_boxes_cache.insert({key, index}).second;
+// 	Assert(ok && "insert node failed in InsertNode");
+// }
 
 
 // TODO(sb): incorporate step_index too or line_index
-internal void EmitToken(expr::Node* node, char const* token_str)
+internal void EmitToken(expr::Node* node, char const* token_str, U32 step_index)
 {
+	// Add to nodebox to vector
 	App::app_state->node_boxes.emplace_back(NodeBox{});
 	NodeBox& box = App::app_state->node_boxes.back();
-	box.step_index = 0; // dummy value 
+	box.line_index = step_index; // dummy value 
+	// box.emit_count = emit_count;
 	box.node = node;
-	InsertNode(&box);
+
+	// InsertNode(&box);
 	
 	CustomLayoutElement* custom = PushStruct(App::app_state->frame_arena, CustomLayoutElement);
 
@@ -142,11 +158,13 @@ internal void EmitToken(expr::Node* node, char const* token_str)
 	custom->expr_node.node_boxes = &App::app_state->node_boxes;
 	custom->expr_node.node = node;
 	custom->expr_node.text = token_str;
-	custom->expr_node.line_index = 0;
+	custom->expr_node.line_index = step_index;
 	custom->expr_node.font_size = 24.0f;
 	custom->expr_node.letter_spacing = 0.0f;
 	custom->expr_node.font_id = 0;
 	custom->expr_node.colour = Clay_Color{0, 0, 0,255};
+	// custom->expr_node.hovered_highlight_group = nullptr;
+	// custom->expr_node.highlight_rects = &App::app_state->highlight_rects;
 	custom->expr_node.node_box_index = App::app_state->node_boxes.size()-1;
 
 	Vector2 size = MeasureTextEx(App::app_state->fonts[0], token_str, custom->expr_node.font_size, custom->expr_node.letter_spacing); // TODO(sb): hardcoded font id fix
@@ -161,7 +179,15 @@ internal void EmitToken(expr::Node* node, char const* token_str)
 		.custom = {
 			.customData = custom,
 		}
-	}) ;
+	}) 
+	{
+		if (Clay_Hovered())
+		{
+			App::app_state->highlight_root = node->highlight_root;
+			App::app_state->hovered_box = &box;
+			// custom->expr_node.hovered_highlight_group = node->highlight_group;
+		}
+	};
 }
 
 internal void RenderNode(expr::Node* node, U32 step_index)
@@ -170,17 +196,48 @@ internal void RenderNode(expr::Node* node, U32 step_index)
 	switch (node->kind)
 	{
 		case NodeKind::Number: {
-			EmitToken(node, CstrFromNode(App::app_state->solutions_arena, node));
+			EmitToken(node, CstrFromNode(App::app_state->solutions_arena, node), step_index);
 		} break;
 
 		case NodeKind::BinaryOp: {
 			if (node->bin_ops == BinOpKind::Minus)
 			{
 				RenderNode(node->bin_left, step_index);
-				EmitToken(node, "-");
+				EmitToken(node, "-", step_index);
 				RenderNode(node->bin_right, step_index);
 			}
+			else
+			{
+				goto not_supported;
+			}
 		} break;
+
+		case NodeKind::NaryOp: {
+			Node* last{};
+			if (node->nary_ops == NaryOpKind::Multiply)
+			{
+				for (Node* it = node->nary_first; 
+					!NodeIsNil(it->nary_next); 
+					it = it->nary_next)
+				{
+					RenderNode(it, step_index);
+					EmitToken(node, "×", step_index);
+					last = it->nary_next;
+				}
+				// last node
+				RenderNode(last, step_index);
+			}
+
+			else
+			{
+				goto not_supported;
+			}
+			
+		} break;
+
+		default: 
+			not_supported:
+				Assert(false && "node not supported");
 	}
 }
 
@@ -201,7 +258,7 @@ internal void Initialise(Arena* arena)
 
 	// stl
 	new(&app_state->node_boxes) std::vector<NodeBox>();
-	new(&app_state->node_boxes_cache) std::unordered_map<U64, U32>();
+	// new(&app_state->node_boxes_cache) std::unordered_map<U64, U32>();
 
 	// initialise clay and raylib
 	EnableEventWaiting();
@@ -359,20 +416,23 @@ internal void BuildUI()
 				if (App::app_state->root_node)
 				{
 					App::app_state->node_boxes.clear();
-            		App::app_state->node_boxes_cache.clear();
-					CLAY(CLAY_ID("OUTPUT_LINE"), {
-					.layout = {
-						.sizing = { .width = CLAY_SIZING_GROW(), .height = 50},
-						// .childAlignment = {
-						// 	.x = CLAY_ALIGN_X_CENTER,
-						// 	.y = CLAY_ALIGN_Y_CENTER,
-						// },
-						.childGap = 10,
-						.layoutDirection = CLAY_LEFT_TO_RIGHT,
-					}
-					})
-					{
-						RenderNode(App::app_state->root_node, 0); // NOTE(sb): the line_indez is hard coded but in the for loop it will be i
+            		// App::app_state->node_boxes_cache.clear();
+            		for (U32 step{}; step < 2; ++step)
+            		{
+						CLAY_AUTO_ID({
+							.layout = {
+								.sizing = { .width = CLAY_SIZING_GROW(), .height = 50},
+								// .childAlignment = {
+								// 	.x = CLAY_ALIGN_X_CENTER,
+								// 	.y = CLAY_ALIGN_Y_CENTER,
+								// },
+								.childGap = 10,
+								.layoutDirection = CLAY_LEFT_TO_RIGHT,
+							}
+						})
+						{
+							RenderNode(App::app_state->root_node, step); // NOTE(sb): the line_indez is hard coded but in the for loop it will be i
+						}
 					}
 				}
 			}
@@ -532,7 +592,8 @@ internal void Shutdown()
 {
 	// TODO(sb): see if its even worth callnig destructors on program close up, why don't we just let the OS claim that memory back
 	app_state->node_boxes.~vector();
-	app_state->node_boxes_cache.~unordered_map();
+	// app_state->node_boxes_cache.~unordered_map();
+	// app_state->highlight_rects.~unordered_map();
 	Clay_Raylib_Close();
 }
 

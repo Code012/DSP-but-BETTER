@@ -1,21 +1,28 @@
 // #include "third_party/clay/clay.h" //GET RID OF THIS
 
+//TODO(sb): rewrite this renderer with your own mem management solutions, and strip it to only what you need
+
 #include "stdint.h"
 #include "string.h"
 #include "stdio.h"
 #include "stdlib.h"
-#include "third_party/raylib/include/raylib.h"
-#include "third_party/raylib/include/raymath.h"
-
+#include <limits>
 
 struct NodeBox
 {
+    Rng2F32 rect;
     expr::Node* node;
-    Rng2F32 rect;           // true bounds
-    Rng2F32 highlight_rect;
-    Rng2F32 hit_rect;       //  
-    U32 step_index;
+    U32 line_index;
 };
+
+struct HighlightRect
+{
+    Rng2F32 rect{std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::min(), std::numeric_limits<float>::min()};
+};
+
+// MY HELPERS
+
+
 
 #define CLAY_RECTANGLE_TO_RAYLIB_RECTANGLE(rectangle) Rectangle { .x = rectangle.x, .y = rectangle.y, .width = rectangle.width, .height = rectangle.height }
 #define CLAY_COLOR_TO_RAYLIB_COLOR(color) Color { .r = (unsigned char)roundf(color.r), .g = (unsigned char)roundf(color.g), .b = (unsigned char)roundf(color.b), .a = (unsigned char)roundf(color.a) }
@@ -41,6 +48,8 @@ typedef struct
 {
     std::vector<NodeBox>* node_boxes;
     expr::Node* node;
+    // expr::Node* hovered_highlight_group;
+    // std::unordered_map<expr::Node*, HighlightRect>* highlight_rects;
     const char* text;
     U32 line_index;
     F32 font_size;
@@ -288,7 +297,16 @@ void Clay_Raylib_Render(Clay_RenderCommandArray renderCommands, Font* fonts)
                     case CUSTOM_LAYOUT_ELEMENT_TYPE_EXPR_NODE: {
 
                         CustomLayoutElement_ExprNode payload = (CustomLayoutElement_ExprNode)customElement->expr_node;
+
                         DrawTextEx(fonts[payload.font_id], payload.text, Vector2{renderCommand->boundingBox.x, renderCommand->boundingBox.y}, payload.font_size, payload.letter_spacing, CLAY_COLOR_TO_RAYLIB_COLOR(payload.colour));
+
+                        // if (payload.hovered_highlight_group)
+                        // {
+                            // Rng2F32 rect{boundingBox.x, boundingBox.y, boundingBox.x + boundingBox.width, boundingBox.y + boundingBox.height};
+                            // HighlightRect& hovered_highlight_group = (*payload.highlight_rects)[payload.hovered_highlight_group];
+                            // hovered_highlight_group.rect = RectUnion(hovered_highlight_group.rect, rect);
+                        // }
+
                         // TODO(sb): Add LRU cache for font measurement
                         Vector2 size = MeasureTextEx(fonts[payload.font_id], payload.text, payload.font_size, payload.letter_spacing); 
                         NodeBox& box = (*payload.node_boxes)[payload.node_box_index];
@@ -296,6 +314,14 @@ void Clay_Raylib_Render(Clay_RenderCommandArray renderCommands, Font* fonts)
                         box.rect.y0 = renderCommand->boundingBox.y;
                         box.rect.x1 = renderCommand->boundingBox.x + size.x;
                         box.rect.y1 = renderCommand->boundingBox.y + size.y;
+                        // if (payload.hovered_highlight_group)
+                        // {
+                        //     // Rectangle node_rect = {boundingBox.x, boundingBox.y, boundingBox.width,  boundingBox.height};
+                        //     // Rectangle highlight_group_root_rect = ;
+                        //     // Rectangle r = RectUnion(node_rect, highlight_group_root_rect);
+                        //     DrawRectangleRounded(r, 0.5f, 0, {255, 180, 80, 80});
+                        //     DrawRectangleRoundedLinesEx(r, 0.5f, 0, 1, {255, 160, 40, 255});
+                        // }
                         break;
                     }
                     

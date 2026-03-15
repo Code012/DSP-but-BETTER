@@ -3,7 +3,7 @@
 #define TOKEN_BUF_SIZE 64
 #define CODEPOINT_BUF_SIZE 64
 
-#define ZeroNode(node) 	do {node->bin_left = node->bin_right = node->unary_child = node->nary_first = node->nary_next = node->reduced_to = node->reduced_from = &nil_node;} while(0)
+#define ZeroNode(node) 	do {node->bin_left = node->bin_right = node->unary_child = node->nary_first = node->nary_next = node->highlight_root = node->reduced_to = node->reduced_from = &nil_node;} while(0)
 
 namespace expr {
 

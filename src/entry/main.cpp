@@ -27,7 +27,9 @@
 //- foreign includes
 #define CLAY_IMPLEMENTATION
 #include "third_party/clay/clay.h"
-#include "third_party/clay/clay_renderer_raylib.h"
+#include "third_party/raylib/include/raylib.h"
+#include "third_party/raylib/include/raymath.h"
+#include "third_party/clay/clay_renderer_raylib.h" // when rewriting this move this to the renderer layer, move to its own render folder
 
 // #include "tester/simpletest.h"
 // #include "tester/simpletest.cpp"
@@ -45,6 +47,8 @@
 // #include "parse/parse_inc.cpp"
 // #include "algebra/algebra_inc.cpp"
 #include "ui/ui_inc.cpp"
+
+
 
 
 
@@ -75,38 +79,47 @@ internal Rng2F32 RectUnion(Rng2F32 a, Rng2F32 b)   // min of mins, max of maxes.
     return a;
 }
 
+
 // Performs RectUnion on operator bounding boxes anad its children for highlight_rect
-internal Rng2F32 ComputeOperatorBounds(expr::Node* node)
-{
-    using namespace expr;
-    using namespace App;
+// internal Rng2F32 ComputeOperatorBounds(expr::Node* node)
+// {
+//     using namespace expr;
+//     using namespace App;
 
-    auto it = app_state->node_boxes_cache.find(node->id);
-    Assert(it != app_state->node_boxes_cache.end() && "node not found in cache");
-    U32 node_boxes_index = it->second;
-    NodeBox& node_box = app_state->node_boxes[node_boxes_index];
-    node_box.highlight_rect = node_box.rect;
+//     NodeBox& node_box = FindBoxFromNode(node);
+//     node_box.highlight_rect = node_box.rect;
 
-    switch (node->kind)
-    {
-        case NodeKind::Number: {
-            return node_box.highlight_rect;
-        } break;
+//     switch (node->kind)
+//     {
+//         case NodeKind::Number: {
+//             return node_box.highlight_rect;
+//         } break;
 
-        case NodeKind::BinaryOp: {
-            Rng2F32 left_rect  = ComputeOperatorBounds(node->bin_left);
-            Rng2F32 right_rect = ComputeOperatorBounds(node->bin_right);
-            node_box.highlight_rect = RectUnion(node_box.highlight_rect, left_rect);        // NOTE(sb): would this be nicer as node_rect |= left_rect?
-            node_box.highlight_rect = RectUnion(node_box.highlight_rect, right_rect);
-        } break;
+//         case NodeKind::BinaryOp: {
+//             Rng2F32 left_rect  = ComputeOperatorBounds(node->bin_left);
+//             Rng2F32 right_rect = ComputeOperatorBounds(node->bin_right);
+//             node_box.highlight_rect = RectUnion(node_box.highlight_rect, left_rect);        // NOTE(sb): would this be nicer as node_rect |= left_rect?
+//             node_box.highlight_rect = RectUnion(node_box.highlight_rect, right_rect);
+//         } break;
 
-        default:
-            Assert(false && "unexpected node type");
-    }
+//         case NodeKind::NaryOp: {
+//             Rng2F32 rect{std::numeric_limits<F32>::max(), std::numeric_limits<F32>::max(), std::numeric_limits<F32>::min(), std::numeric_limits<F32>::min()};
+//             for (Node* it = node->nary_first; !NodeIsNil(it); it = it->nary_next)
+//             {
+//                 Rng2F32 child_rect = ComputeOperatorBounds(it);
+//                 rect = RectUnion(rect, child_rect);
+//             }
+
+//             node_box.highlight_rect = RectUnion(node_box.highlight_rect, rect);
+
+//         } break;
+
+//         default:
+//             Assert(false && "unexpected node type");
+//     }
     
-    return node_box.highlight_rect;
-}
-
+//     return node_box.highlight_rect;
+// }
 
 internal Rng2F32 RectExpand(Rng2F32 a, Rng2F32 b)
 {
@@ -118,30 +131,55 @@ internal Rng2F32 RectExpand(Rng2F32 a, Rng2F32 b)
     return a;
 }
 
-internal void ComputeHitRects(expr::Node* node)
-{
-    using namespace App;
+internal void MarkSubTree(expr::Node* node)
+{   
+    using namespace expr;
+    node->visit_mark = App::app_state->current_mark;
 
-    // these get ignored in loop so i do it here
-    auto& first = app_state->node_boxes.front();
-    auto& last = app_state->node_boxes.back();
-    first.hit_rect = first.rect;
-    last.hit_rect = last.rect;
-
-    for (auto it = app_state->node_boxes.begin() + 1; // ignoring first and last (left and right on screen) 
-        it != app_state->node_boxes.end() - 1; 
-        ++it)
+    switch(node->kind)
     {
-        auto& prev = *(it - 1);
-        auto& curr = *it;
-        auto& next = *(it + 1);
+         case NodeKind::BinaryOp:
+            MarkSubTree(node->bin_left);
+            MarkSubTree(node->bin_right);
+            break;
 
-        curr.hit_rect = curr.rect;
+        case NodeKind::NaryOp:
+            for (Node* it = node->nary_first; !NodeIsNil(it); it = it->nary_next)
+                MarkSubTree(it);
+            break;
 
-        curr.hit_rect = RectExpand(curr.hit_rect, prev.hit_rect);
-        curr.hit_rect = RectExpand(curr.hit_rect, next.hit_rect);
+        case NodeKind::Number:
+            break;
     }
+
 }
+
+// this only wokrs because the way the nodeboxes are laid out in the vector are in in-order which is the exact order they appear visually left-to-right on screen.
+// so satisfying this just works
+// internal void ComputeHitRects(expr::Node* node)
+// {
+//     using namespace App;
+
+//     // these get ignored in loop so i do it here
+//     auto& first = app_state->node_boxes.front();
+//     auto& last = app_state->node_boxes.back();
+//     first.hit_rect = first.rect;
+//     last.hit_rect = last.rect;
+
+//     for (auto it = app_state->node_boxes.begin() + 1; // ignoring first and last (left and right on screen) 
+//         it != app_state->node_boxes.end() - 1; 
+//         ++it)
+//     {
+//         auto& prev = *(it - 1);
+//         auto& curr = *it;
+//         auto& next = *(it + 1);
+
+//         curr.hit_rect = curr.rect;
+
+//         curr.hit_rect = RectExpand(curr.hit_rect, prev.hit_rect);
+//         curr.hit_rect = RectExpand(curr.hit_rect, next.hit_rect);
+//     }
+// }
 
 internal void 
 EntryPoint(U64 argument_count, char** arguments) 
@@ -164,6 +202,8 @@ EntryPoint(U64 argument_count, char** arguments)
         // TODO(sb): have some "reinitialise_clay" logic if an error is caught in HandleClayErrors, look at clay_examples/main.c for how to do it
 
 		ArenaClear(App::app_state->frame_arena);
+        App::app_state->highlight_root = nullptr;
+        App::app_state->hovered_box = nullptr;
         F32 dt = GetFrameTime();
         submit = false;
 // -------------------------------------------------------------------------------------------------
@@ -226,24 +266,93 @@ EntryPoint(U64 argument_count, char** arguments)
             ArenaClear(App::app_state->solutions_arena);
             
             
-            // Print using root node, however get bounding boxes for each token
-            // nodes
+            // Print using root node
+            // 2 / (32 + 43 + 50 + (-10))
+            /*
+                        /
+                       / \  
+                      2  __+_____
+                        |  |  |  | 
+                        32 43 50 -
+                                 |
+                                 10
+
+                      or more accurately
+
+                        /
+                       / \
+                      2   + -> 32 -> 43 -> 50 -> -
+                                                 |
+                                                 10
+
+                all nodes except for ones that represnt a meaningful visual grouping, like binary or nary
+                copy the parent's highlight_root. + highlight gropu is itself and is copied to all children, 
+                even grand children like 10
+            */
             expr::Node* sub_node  = PushStruct(App::app_state->solutions_arena, expr::Node);
             expr::Node* num_node1 = PushStruct(App::app_state->solutions_arena, expr::Node);
-            expr::Node* num_node2 = PushStruct(App::app_state->solutions_arena, expr::Node);
+            expr::Node* prod_node = PushStruct(App::app_state->solutions_arena, expr::Node);
+            expr::Node* pnum_node1 = PushStruct(App::app_state->solutions_arena, expr::Node);
+            expr::Node* pnum_node2 = PushStruct(App::app_state->solutions_arena, expr::Node);
+            expr::Node* pnum_node3 = PushStruct(App::app_state->solutions_arena, expr::Node);
+            expr::Node* punary_node = PushStruct(App::app_state->solutions_arena, expr::Node);
+            expr::Node* punary_num1 = PushStruct(App::app_state->solutions_arena, expr::Node);
+
 
             sub_node->bin_left = num_node1;
-            sub_node->bin_right = num_node2;
+            sub_node->bin_right = prod_node;
             sub_node->bin_ops = expr::BinOpKind::Minus;
             sub_node->kind = expr::NodeKind::BinaryOp;
+            sub_node->highlight_root = sub_node;  
             sub_node->id = 0;
 
-            num_node1->number = 2.0;
-            num_node1->kind = expr::NodeKind::Number;
-            num_node1->id = 1;
-            num_node2->number = 4.0;
-            num_node2->kind = expr::NodeKind::Number;
-            num_node2->id = 2;
+            num_node1->kind        = expr::NodeKind::Number;  
+            num_node1->number      = 2.0;
+            num_node1->highlight_root = sub_node;
+            num_node1->id          = 1;
+
+            prod_node->kind         = expr::NodeKind::NaryOp;
+            prod_node->nary_ops     = expr::NaryOpKind::Multiply;
+            prod_node->nary_first   = pnum_node1;
+            prod_node->nary_next    = pnum_node2;
+            prod_node->num_operands = 3;
+            prod_node->highlight_root = prod_node;
+            prod_node->id           = 2;
+
+
+            pnum_node1->nary_first  = pnum_node1;
+            pnum_node1->nary_next   = pnum_node2;
+            pnum_node1->kind        = expr::NodeKind::Number;  
+            pnum_node1->number      = 32.0;
+            pnum_node1->highlight_root = prod_node;
+            pnum_node1->id          = 3;
+
+            pnum_node2->nary_first  = pnum_node1; 
+            pnum_node2->nary_next   = pnum_node3;
+            pnum_node2->kind        = expr::NodeKind::Number;
+            pnum_node2->number      = 43.0;
+            pnum_node2->highlight_root = prod_node;
+            pnum_node2->id          = 4;
+
+            pnum_node3->nary_first  = pnum_node1; 
+            pnum_node3->nary_next   = &expr::nil_node;//punary_node;
+            pnum_node3->kind        = expr::NodeKind::Number;
+            pnum_node3->number      = 50.0;
+            pnum_node3->highlight_root = prod_node;
+            pnum_node3->id          = 5;
+
+            // punary_node->nary_next = pnum_node1;
+            // punary_node->nary_next = &expr::nil_node;
+            // punary_node->kind = expr::NodeKind::UnaryOp;
+            // punary_node->un_ops = expr::UnOpKind::Negate;
+            // punary_node->highlight_root = prod_node->highlight_root;
+            // punary_node->id = 6;
+
+            // punary_node->kind = expr::NodeKind::Number;
+            // punary_node->number = 10.0;
+            // punary_num1->highlight_root = punary_node->highlight_root;
+
+
 
             App::app_state->root_node = sub_node;
             // expr::Result algebra_result = expr::SimplifyWithSteps(App::app_state->solutions_arena, parse_result.root);
@@ -333,30 +442,49 @@ EntryPoint(U64 argument_count, char** arguments)
             RenderTextCursor(scratch.arena, &App::app_state->input_box, App::app_state->fonts);
         }
 
-        if (App::app_state->root_node)
-        {
-            // compute union bounding boxes for operator nodes
-            ComputeOperatorBounds(App::app_state->root_node);
-            ComputeHitRects(App::app_state->root_node);
+        // if (App::app_state->hovered_highlight_root)
+        // {
+        //     Rng2F32 rect = App::app_state->highlight_rects[App::app_state->hovered_highlight_root].rect;
+        //     F32 padding = 5;
+        //     Rectangle r = {rect.x0 - padding, rect.y0 - padding,
+        //                 (rect.x1 - rect.x0) + padding * 2,
+        //                 (rect.y1 - rect.y0) + padding * 2};
+        //     DrawRectangleRounded(r,
+        //                 0.5f,
+        //                 0,
+        //                 {255, 180, 80, 80});
+        //             DrawRectangleRoundedLinesEx(r, 0.5f, 0, 1, {255, 160, 40, 255});
+        // }
 
-            // check hovered and highlight
-            for (const auto& box : App::app_state->node_boxes)
+        if (App::app_state->highlight_root)
+        {
+
+            expr::Node* hovered_root = App::app_state->hovered_box->node->highlight_root;
+            U32 line = App::app_state->hovered_box->line_index;
+
+            App::app_state->current_mark++;
+            MarkSubTree(hovered_root);
+
+            Rng2F32 result_rect{std::numeric_limits<F32>::max(), std::numeric_limits<F32>::max(), std::numeric_limits<F32>::min(), std::numeric_limits<F32>::min()};
+
+            for (NodeBox& box : App::app_state->node_boxes)
             {
-                if (Contains2F32(box.hit_rect, {mouse_position.x, mouse_position.y})) 
+                if (box.line_index == line && 
+                    box.node->visit_mark == App::app_state->current_mark)
                 {
-                    // TODO(sb): see if rounded rect look good
-                    F32 padding = 6;
-                    Rectangle r = {box.highlight_rect.x0-padding, box.highlight_rect.y0-padding, 
-                        (box.highlight_rect.x1 - box.highlight_rect.x0) + padding*2, 
-                        (box.highlight_rect.y1 - box.highlight_rect.y0) + padding*2};
-                    DrawRectangleRounded(r,
-                        0.5f,
-                        0,
-                        {255, 180, 80, 80});
-                    DrawRectangleRoundedLinesEx(r, 0.5f, 0, 1, {255, 160, 40, 255});
-                    break;
+                    result_rect = RectUnion(result_rect, box.rect);
                 }
             }
+
+            F32 padding = 6;
+            Rectangle r = {result_rect.x0-padding, result_rect.y0-padding, 
+                (result_rect.x1 - result_rect.x0) + padding*2, 
+                (result_rect.y1 - result_rect.y0) + padding*2};
+            DrawRectangleRounded(r,
+                0.5f,
+                0,
+                {255, 180, 80, 80});
+            DrawRectangleRoundedLinesEx(r, 0.5f, 0, 1, {255, 160, 40, 255});
         }
 
 

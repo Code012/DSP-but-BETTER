@@ -111,6 +111,9 @@ struct State
 
 	// clay
 	Font fonts[2];
+	expr::Node* highlight_root;
+	NodeBox* hovered_box;
+	U32 current_mark{};
 
 	// ui state
 	UI::TextEditState input_box;
@@ -122,9 +125,10 @@ struct State
 
 	expr::Node* root_node;
 
+	// std::unordered_map<expr::Node*, HighlightRect> highlight_rects; 
+	// got this index-based idea from Martins
 	std::vector<NodeBox> node_boxes;	// TODO(sb): replace vector when done prototyping
-	// std::vector<NodeBox> highlight_boxes;
-	std::unordered_map<U64, U32> node_boxes_cache;	// node id -> node box vector index
+	// std::unordered_map<U64, U32> node_boxes_cache;	// node id, emission count -> node box vector index
 
 	// TODO(me): cross-platform solution for paths, in windows msvc can embed into exe, in linux and mac can with #embed or can package into .App or .AppInstaller
 	// paths
