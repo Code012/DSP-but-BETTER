@@ -85,6 +85,12 @@ namespace g
 	    0X2212	// −, Minus Sign
 
 	};
+
+	read_only global F32 pad_left = 10; 
+	read_only global F32 pad_right = 10;
+	read_only global F32 pad_top= 0; 
+	read_only global F32 pad_bottom = 0;
+	// read_only global F32 OUTPUT_LINE_UNARY_CHILD_
 }	//namespace global
 
 

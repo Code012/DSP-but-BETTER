@@ -1,6 +1,5 @@
 /*  date = December 09th 2025 06:15 PM */
 
-
 // TODO(sb): make this iterative
 internal String8List* BuildStringList(Arena* arena, expr::Node* node, String8List* list)
 {
@@ -13,13 +12,24 @@ internal String8List* BuildStringList(Arena* arena, expr::Node* node, String8Lis
 		case NodeKind::Number: {
 			Str8ListPushF(arena, list, "%.2f", node->number);
 		} break;
+		case NodeKind::Variable: {
+			goto err;
+		} break;
+		case NodeKind::UnaryOp: {
+			goto err;
+		} break;
 		case NodeKind::BinaryOp : {
 			if (node->bin_ops == BinOpKind::Minus)
 			BuildStringList(arena, node->bin_left, list);
 			Str8ListPushF(arena, list, "-");
 			BuildStringList(arena, node->bin_right, list);
-
 		} break;
+		case NodeKind::NaryOp: {
+			goto err;
+		} break;
+		default: 
+			err:
+			Assert(false && "unrecognised node kind");
 	};
 	
 	return list;
@@ -141,7 +151,7 @@ internal B32 Contains2F32(Rng2F32 r, Vec2F32 p)
 
 
 // TODO(sb): incorporate step_index too or line_index
-internal void EmitToken(expr::Node* node, char const* token_str, U32 step_index)
+internal void EmitToken(expr::Node* node, char const* token_str, U32 step_index, F32 pad_left=0.0f, F32 pad_right=0.0f)
 {
 	// Add to nodebox to vector
 	App::app_state->node_boxes.emplace_back(NodeBox{});
@@ -163,17 +173,26 @@ internal void EmitToken(expr::Node* node, char const* token_str, U32 step_index)
 	custom->expr_node.letter_spacing = 0.0f;
 	custom->expr_node.font_id = 0;
 	custom->expr_node.colour = Clay_Color{0, 0, 0,255};
+	custom->expr_node.horizontal_padding = {pad_left, pad_right};
 	// custom->expr_node.hovered_highlight_group = nullptr;
 	// custom->expr_node.highlight_rects = &App::app_state->highlight_rects;
 	custom->expr_node.node_box_index = App::app_state->node_boxes.size()-1;
 
 	Vector2 size = MeasureTextEx(App::app_state->fonts[0], token_str, custom->expr_node.font_size, custom->expr_node.letter_spacing); // TODO(sb): hardcoded font id fix
 
+
 	CLAY_AUTO_ID({
 		.layout = {
 			.sizing = {
-				.width = size.x ,
+				// TODO(sb): Different nodes have diff child gaps, like unary minus or power
+				// Very hacky solution tho, it only adds a "gap" to the right, work on this.
+				// even when moving to renderer, how do you change the x bounding box?
+				.width = size.x + pad_left + pad_right,
 				.height = size.y,
+			},
+			.childAlignment = {
+				.x = CLAY_ALIGN_X_CENTER,
+				.y = CLAY_ALIGN_Y_CENTER,
 			},
 		},
 		.custom = {
@@ -199,11 +218,27 @@ internal void RenderNode(expr::Node* node, U32 step_index)
 			EmitToken(node, CstrFromNode(App::app_state->solutions_arena, node), step_index);
 		} break;
 
+		case NodeKind::Variable: {
+			EmitToken(node, CStrFromStr8(App::app_state->solutions_arena, node->name), step_index);
+		} break;
+
+		case NodeKind::UnaryOp: {
+			if (node->un_ops == UnOpKind::Negate)
+			{
+				EmitToken(node, "-", step_index);
+				RenderNode(node->unary_child, step_index);
+			}
+			else
+			{
+				goto not_supported;
+			}
+		} break;
+
 		case NodeKind::BinaryOp: {
 			if (node->bin_ops == BinOpKind::Minus)
 			{
 				RenderNode(node->bin_left, step_index);
-				EmitToken(node, "-", step_index);
+				EmitToken(node, "-", step_index, g::pad_left, g::pad_right);
 				RenderNode(node->bin_right, step_index);
 			}
 			else
@@ -221,7 +256,7 @@ internal void RenderNode(expr::Node* node, U32 step_index)
 					it = it->nary_next)
 				{
 					RenderNode(it, step_index);
-					EmitToken(node, "×", step_index);
+					EmitToken(node, "×", step_index, g::pad_left, g::pad_right);
 					last = it->nary_next;
 				}
 				// last node
@@ -236,6 +271,7 @@ internal void RenderNode(expr::Node* node, U32 step_index)
 		} break;
 
 		default: 
+			goto not_supported;
 			not_supported:
 				Assert(false && "node not supported");
 	}
@@ -422,11 +458,12 @@ internal void BuildUI()
 						CLAY_AUTO_ID({
 							.layout = {
 								.sizing = { .width = CLAY_SIZING_GROW(), .height = 50},
-								// .childAlignment = {
-								// 	.x = CLAY_ALIGN_X_CENTER,
-								// 	.y = CLAY_ALIGN_Y_CENTER,
-								// },
-								.childGap = 10,
+								.childAlignment = {
+									.x = CLAY_ALIGN_X_CENTER,
+									.y = CLAY_ALIGN_Y_CENTER,
+								},
+
+								// .childGap = g::OUTPUT_LINE_DEFAULT_CHILD_GAP,
 								.layoutDirection = CLAY_LEFT_TO_RIGHT,
 							}
 						})

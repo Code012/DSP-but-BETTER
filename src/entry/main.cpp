@@ -8,6 +8,8 @@
 #define BUILD_ENTRY_POINT_DEFINING_UNIT 1 // export to batch file
 #define BUILD_COMMAND_LINE_INTERFACE 1 // export to batch file
 
+
+
 //////////////////////////////
 //- Includes
 
@@ -131,24 +133,32 @@ internal Rng2F32 RectExpand(Rng2F32 a, Rng2F32 b)
     return a;
 }
 
-internal void MarkSubTree(expr::Node* node)
+// TODO(sb): make this iterative, it could easily be iterative
+internal void MarkSubTree(expr::Node* node) 
 {   
     using namespace expr;
     node->visit_mark = App::app_state->current_mark;
 
     switch(node->kind)
     {
-         case NodeKind::BinaryOp:
+        case NodeKind::UnaryOp: {
+            MarkSubTree(node->unary_child);        
+        } break;
+        case NodeKind::BinaryOp: {
+
             MarkSubTree(node->bin_left);
             MarkSubTree(node->bin_right);
-            break;
+        } break;
+        case NodeKind::NaryOp: {
 
-        case NodeKind::NaryOp:
             for (Node* it = node->nary_first; !NodeIsNil(it); it = it->nary_next)
                 MarkSubTree(it);
-            break;
+        } break;
 
+        // leaf base cases
         case NodeKind::Number:
+            break;
+        case NodeKind::Variable:
             break;
     }
 
@@ -315,7 +325,7 @@ EntryPoint(U64 argument_count, char** arguments)
             prod_node->nary_ops     = expr::NaryOpKind::Multiply;
             prod_node->nary_first   = pnum_node1;
             prod_node->nary_next    = pnum_node2;
-            prod_node->num_operands = 3;
+            prod_node->num_operands = 4;
             prod_node->highlight_root = prod_node;
             prod_node->id           = 2;
 
@@ -324,33 +334,34 @@ EntryPoint(U64 argument_count, char** arguments)
             pnum_node1->nary_next   = pnum_node2;
             pnum_node1->kind        = expr::NodeKind::Number;  
             pnum_node1->number      = 32.0;
-            pnum_node1->highlight_root = prod_node;
+            pnum_node1->highlight_root = prod_node->highlight_root;
             pnum_node1->id          = 3;
 
             pnum_node2->nary_first  = pnum_node1; 
             pnum_node2->nary_next   = pnum_node3;
             pnum_node2->kind        = expr::NodeKind::Number;
             pnum_node2->number      = 43.0;
-            pnum_node2->highlight_root = prod_node;
+            pnum_node2->highlight_root = prod_node->highlight_root;
             pnum_node2->id          = 4;
 
             pnum_node3->nary_first  = pnum_node1; 
-            pnum_node3->nary_next   = &expr::nil_node;//punary_node;
+            pnum_node3->nary_next   = punary_node;
             pnum_node3->kind        = expr::NodeKind::Number;
             pnum_node3->number      = 50.0;
-            pnum_node3->highlight_root = prod_node;
+            pnum_node3->highlight_root = prod_node->highlight_root;
             pnum_node3->id          = 5;
 
-            // punary_node->nary_next = pnum_node1;
-            // punary_node->nary_next = &expr::nil_node;
-            // punary_node->kind = expr::NodeKind::UnaryOp;
-            // punary_node->un_ops = expr::UnOpKind::Negate;
-            // punary_node->highlight_root = prod_node->highlight_root;
-            // punary_node->id = 6;
+            punary_node->nary_first = pnum_node1;
+            punary_node->nary_next = &expr::nil_node;
+            punary_node->kind = expr::NodeKind::UnaryOp;
+            punary_node->un_ops = expr::UnOpKind::Negate;
+            punary_node->unary_child = punary_num1;
+            punary_node->highlight_root = prod_node->highlight_root;
+            punary_node->id = 6;
 
-            // punary_node->kind = expr::NodeKind::Number;
-            // punary_node->number = 10.0;
-            // punary_num1->highlight_root = punary_node->highlight_root;
+            punary_num1->kind = expr::NodeKind::Number;
+            punary_num1->number = 10.0;
+            punary_num1->highlight_root = punary_node->highlight_root;
 
 
 

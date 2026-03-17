@@ -46,6 +46,7 @@ typedef struct
 
 typedef struct
 {
+    Vector2 horizontal_padding;
     std::vector<NodeBox>* node_boxes;
     expr::Node* node;
     // expr::Node* hovered_highlight_group;
@@ -298,30 +299,19 @@ void Clay_Raylib_Render(Clay_RenderCommandArray renderCommands, Font* fonts)
 
                         CustomLayoutElement_ExprNode payload = (CustomLayoutElement_ExprNode)customElement->expr_node;
 
-                        DrawTextEx(fonts[payload.font_id], payload.text, Vector2{renderCommand->boundingBox.x, renderCommand->boundingBox.y}, payload.font_size, payload.letter_spacing, CLAY_COLOR_TO_RAYLIB_COLOR(payload.colour));
+                        // Vector2 size = MeasureTextEx(fonts[payload.font_id], payload.text, payload.font_size, payload.letter_spacing);
+                        Vector2 rect{};
+                        rect.x = renderCommand->boundingBox.x + (payload.horizontal_padding.x+payload.horizontal_padding.y)/2;
+                        rect.y = renderCommand->boundingBox.y;
 
-                        // if (payload.hovered_highlight_group)
-                        // {
-                            // Rng2F32 rect{boundingBox.x, boundingBox.y, boundingBox.x + boundingBox.width, boundingBox.y + boundingBox.height};
-                            // HighlightRect& hovered_highlight_group = (*payload.highlight_rects)[payload.hovered_highlight_group];
-                            // hovered_highlight_group.rect = RectUnion(hovered_highlight_group.rect, rect);
-                        // }
+                        DrawTextEx(fonts[payload.font_id], payload.text, rect, payload.font_size, payload.letter_spacing, CLAY_COLOR_TO_RAYLIB_COLOR(payload.colour));
 
-                        // TODO(sb): Add LRU cache for font measurement
-                        Vector2 size = MeasureTextEx(fonts[payload.font_id], payload.text, payload.font_size, payload.letter_spacing); 
                         NodeBox& box = (*payload.node_boxes)[payload.node_box_index];
                         box.rect.x0 = renderCommand->boundingBox.x;
                         box.rect.y0 = renderCommand->boundingBox.y;
-                        box.rect.x1 = renderCommand->boundingBox.x + size.x;
-                        box.rect.y1 = renderCommand->boundingBox.y + size.y;
-                        // if (payload.hovered_highlight_group)
-                        // {
-                        //     // Rectangle node_rect = {boundingBox.x, boundingBox.y, boundingBox.width,  boundingBox.height};
-                        //     // Rectangle highlight_group_root_rect = ;
-                        //     // Rectangle r = RectUnion(node_rect, highlight_group_root_rect);
-                        //     DrawRectangleRounded(r, 0.5f, 0, {255, 180, 80, 80});
-                        //     DrawRectangleRoundedLinesEx(r, 0.5f, 0, 1, {255, 160, 40, 255});
-                        // }
+                        box.rect.x1 = renderCommand->boundingBox.x + renderCommand->boundingBox.width;
+                        box.rect.y1 = renderCommand->boundingBox.y + renderCommand->boundingBox.height;
+                      
                         break;
                     }
                     
