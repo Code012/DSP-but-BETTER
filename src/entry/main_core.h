@@ -117,7 +117,7 @@ struct State
 
 	// clay
 	Font fonts[2];
-	expr::Node* highlight_root;
+	// expr::Node* highlight_root;
 	NodeBox* hovered_box;
 	U32 current_mark{};
 

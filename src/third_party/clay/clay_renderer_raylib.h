@@ -12,6 +12,7 @@ struct NodeBox
 {
     Rng2F32 rect;
     expr::Node* node;
+    expr::Node* highlight_root; 
     U32 line_index;
 };
 

@@ -151,7 +151,7 @@ internal B32 Contains2F32(Rng2F32 r, Vec2F32 p)
 
 
 // TODO(sb): incorporate step_index too or line_index
-internal void EmitToken(expr::Node* node, char const* token_str, U32 step_index, F32 pad_left=0.0f, F32 pad_right=0.0f)
+internal void EmitToken(expr::Node* node, expr::Node* highlight_root, char const* token_str, U32 step_index, F32 pad_left=0.0f, F32 pad_right=0.0f)
 {
 	// Add to nodebox to vector
 	App::app_state->node_boxes.emplace_back(NodeBox{});
@@ -159,6 +159,7 @@ internal void EmitToken(expr::Node* node, char const* token_str, U32 step_index,
 	box.line_index = step_index; // dummy value 
 	// box.emit_count = emit_count;
 	box.node = node;
+	box.highlight_root = highlight_root;
 
 	// InsertNode(&box);
 	
@@ -202,31 +203,32 @@ internal void EmitToken(expr::Node* node, char const* token_str, U32 step_index,
 	{
 		if (Clay_Hovered())
 		{
-			App::app_state->highlight_root = node->highlight_root;
+			// App::app_state->highlight_root = node->highlight_root;
 			App::app_state->hovered_box = &box;
 			// custom->expr_node.hovered_highlight_group = node->highlight_group;
 		}
 	};
 }
 
-internal void RenderNode(expr::Node* node, U32 step_index)
+internal void RenderNode(expr::Node* node, expr::Node* highlight_root, U32 step_index)
 {
+	expr::Node* current_highlight_root = highlight_root;
 	using namespace expr;
 	switch (node->kind)
 	{
 		case NodeKind::Number: {
-			EmitToken(node, CstrFromNode(App::app_state->solutions_arena, node), step_index);
+			EmitToken(node, current_highlight_root, CstrFromNode(App::app_state->solutions_arena, node), step_index);
 		} break;
 
 		case NodeKind::Variable: {
-			EmitToken(node, CStrFromStr8(App::app_state->solutions_arena, node->name), step_index);
+			EmitToken(node, current_highlight_root, CStrFromStr8(App::app_state->solutions_arena, node->name), step_index);
 		} break;
 
 		case NodeKind::UnaryOp: {
 			if (node->un_ops == UnOpKind::Negate)
 			{
-				EmitToken(node, "-", step_index);
-				RenderNode(node->unary_child, step_index);
+				EmitToken(node, current_highlight_root, "-", step_index);
+				RenderNode(node->unary_child, current_highlight_root, step_index);
 			}
 			else
 			{
@@ -235,11 +237,12 @@ internal void RenderNode(expr::Node* node, U32 step_index)
 		} break;
 
 		case NodeKind::BinaryOp: {
+			current_highlight_root = node;
 			if (node->bin_ops == BinOpKind::Minus)
 			{
-				RenderNode(node->bin_left, step_index);
-				EmitToken(node, "-", step_index, g::pad_left, g::pad_right);
-				RenderNode(node->bin_right, step_index);
+				RenderNode(node->bin_left, current_highlight_root, step_index);
+				EmitToken(node, current_highlight_root, "-", step_index, g::pad_left, g::pad_right);
+				RenderNode(node->bin_right, current_highlight_root, step_index);
 			}
 			else
 			{
@@ -249,18 +252,19 @@ internal void RenderNode(expr::Node* node, U32 step_index)
 
 		case NodeKind::NaryOp: {
 			Node* last{};
+			current_highlight_root = node;
 			if (node->nary_ops == NaryOpKind::Multiply)
 			{
 				for (Node* it = node->nary_first; 
 					!NodeIsNil(it->nary_next); 
 					it = it->nary_next)
 				{
-					RenderNode(it, step_index);
-					EmitToken(node, "×", step_index, g::pad_left, g::pad_right);
+					RenderNode(it, current_highlight_root, step_index);
+					EmitToken(node, current_highlight_root, "×", step_index, g::pad_left, g::pad_right);
 					last = it->nary_next;
 				}
 				// last node
-				RenderNode(last, step_index);
+				RenderNode(last, current_highlight_root, step_index);
 			}
 
 			else
@@ -453,7 +457,11 @@ internal void BuildUI()
 				{
 					App::app_state->node_boxes.clear();
             		// App::app_state->node_boxes_cache.clear();
-            		for (U32 step{}; step < 2; ++step)
+            		U32 step{};
+            		for (auto* node = App::app_state->root_node;
+            			!(NodeIsNil(node));
+            			node = node->reduced_to, ++step)
+            		// for (U32 step{}; step < 2; ++step)
             		{
 						CLAY_AUTO_ID({
 							.layout = {
@@ -468,7 +476,7 @@ internal void BuildUI()
 							}
 						})
 						{
-							RenderNode(App::app_state->root_node, step); // NOTE(sb): the line_indez is hard coded but in the for loop it will be i
+							RenderNode(node, node, step); // NOTE(sb): the line_indez is hard coded but in the for loop it will be i
 						}
 					}
 				}

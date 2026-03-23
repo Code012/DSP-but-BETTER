@@ -212,7 +212,7 @@ EntryPoint(U64 argument_count, char** arguments)
         // TODO(sb): have some "reinitialise_clay" logic if an error is caught in HandleClayErrors, look at clay_examples/main.c for how to do it
 
 		ArenaClear(App::app_state->frame_arena);
-        App::app_state->highlight_root = nullptr;
+        // App::app_state->highlight_root = nullptr;
         App::app_state->hovered_box = nullptr;
         F32 dt = GetFrameTime();
         submit = false;
@@ -277,11 +277,11 @@ EntryPoint(U64 argument_count, char** arguments)
             
             
             // Print using root node
-            // 2 / (32 + 43 + 50 + (-10))
+            // 230 - (32 + 43 + 50 + (-10))
             /*
-                        /
+                        -
                        / \  
-                      2  __+_____
+                   230  __+_____
                         |  |  |  | 
                         32 43 50 -
                                  |
@@ -289,7 +289,7 @@ EntryPoint(U64 argument_count, char** arguments)
 
                       or more accurately
 
-                        /
+                        -
                        / \
                       2   + -> 32 -> 43 -> 50 -> -
                                                  |
@@ -299,7 +299,7 @@ EntryPoint(U64 argument_count, char** arguments)
                 copy the parent's highlight_root. + highlight gropu is itself and is copied to all children, 
                 even grand children like 10
             */
-            expr::Node* sub_node  = PushStruct(App::app_state->solutions_arena, expr::Node);
+            expr::Node* root_1_sub_node  = PushStruct(App::app_state->solutions_arena, expr::Node);
             expr::Node* num_node1 = PushStruct(App::app_state->solutions_arena, expr::Node);
             expr::Node* prod_node = PushStruct(App::app_state->solutions_arena, expr::Node);
             expr::Node* pnum_node1 = PushStruct(App::app_state->solutions_arena, expr::Node);
@@ -308,17 +308,23 @@ EntryPoint(U64 argument_count, char** arguments)
             expr::Node* punary_node = PushStruct(App::app_state->solutions_arena, expr::Node);
             expr::Node* punary_num1 = PushStruct(App::app_state->solutions_arena, expr::Node);
 
+            expr::Node* root_2_sub_node = PushStruct(App::app_state->solutions_arena, expr::Node);
+            expr::Node* new_num_node = PushStruct(App::app_state->solutions_arena, expr::Node);
 
-            sub_node->bin_left = num_node1;
-            sub_node->bin_right = prod_node;
-            sub_node->bin_ops = expr::BinOpKind::Minus;
-            sub_node->kind = expr::NodeKind::BinaryOp;
-            sub_node->highlight_root = sub_node;  
-            sub_node->id = 0;
+            expr::Node* root_3_node = PushStruct(App::app_state->solutions_arena, expr::Node);
+
+
+            // Step 1
+            root_1_sub_node->bin_left = num_node1;
+            root_1_sub_node->bin_right = prod_node;
+            root_1_sub_node->bin_ops = expr::BinOpKind::Minus;
+            root_1_sub_node->kind = expr::NodeKind::BinaryOp;
+            // root_1_sub_node->highlight_root = root_1_sub_node;  
+            root_1_sub_node->id = 0;
 
             num_node1->kind        = expr::NodeKind::Number;  
-            num_node1->number      = 2.0;
-            num_node1->highlight_root = sub_node;
+            num_node1->number      = 230.0;
+            // num_node1->highlight_root = root_1_sub_node;
             num_node1->id          = 1;
 
             prod_node->kind         = expr::NodeKind::NaryOp;
@@ -326,7 +332,7 @@ EntryPoint(U64 argument_count, char** arguments)
             prod_node->nary_first   = pnum_node1;
             prod_node->nary_next    = pnum_node2;
             prod_node->num_operands = 4;
-            prod_node->highlight_root = prod_node;
+            // prod_node->highlight_root = prod_node;
             prod_node->id           = 2;
 
 
@@ -334,21 +340,21 @@ EntryPoint(U64 argument_count, char** arguments)
             pnum_node1->nary_next   = pnum_node2;
             pnum_node1->kind        = expr::NodeKind::Number;  
             pnum_node1->number      = 32.0;
-            pnum_node1->highlight_root = prod_node->highlight_root;
+            // pnum_node1->highlight_root = prod_node->highlight_root;
             pnum_node1->id          = 3;
 
             pnum_node2->nary_first  = pnum_node1; 
             pnum_node2->nary_next   = pnum_node3;
             pnum_node2->kind        = expr::NodeKind::Number;
             pnum_node2->number      = 43.0;
-            pnum_node2->highlight_root = prod_node->highlight_root;
+            // pnum_node2->highlight_root = prod_node->highlight_root;
             pnum_node2->id          = 4;
 
             pnum_node3->nary_first  = pnum_node1; 
             pnum_node3->nary_next   = punary_node;
             pnum_node3->kind        = expr::NodeKind::Number;
             pnum_node3->number      = 50.0;
-            pnum_node3->highlight_root = prod_node->highlight_root;
+            // pnum_node3->highlight_root = prod_node->highlight_root;
             pnum_node3->id          = 5;
 
             punary_node->nary_first = pnum_node1;
@@ -356,16 +362,37 @@ EntryPoint(U64 argument_count, char** arguments)
             punary_node->kind = expr::NodeKind::UnaryOp;
             punary_node->un_ops = expr::UnOpKind::Negate;
             punary_node->unary_child = punary_num1;
-            punary_node->highlight_root = prod_node->highlight_root;
+            // punary_node->highlight_root = prod_node->highlight_root;
             punary_node->id = 6;
 
             punary_num1->kind = expr::NodeKind::Number;
             punary_num1->number = 10.0;
-            punary_num1->highlight_root = punary_node->highlight_root;
+            // punary_num1->highlight_root = punary_node->highlight_root;
+
+            // Step 2
+            root_1_sub_node->reduced_to = root_2_sub_node;
+            root_2_sub_node->reduced_from = root_1_sub_node;
+
+            root_2_sub_node->bin_left = num_node1;
+            root_2_sub_node->bin_right = new_num_node;
+            root_2_sub_node->bin_ops = expr::BinOpKind::Minus;
+            root_2_sub_node->kind = expr::NodeKind::BinaryOp;
+            // root_2_sub_node->highlight_root = root_2_sub_node;
+
+            // new_num_node->highlight_root = root_2_sub_node;
+            new_num_node->kind = expr::NodeKind::Number;
+            new_num_node->number = 115.0;
+
+            // Step 3
+            root_2_sub_node->reduced_to = root_3_node;
+            root_3_node->reduced_from = root_2_sub_node;
+            root_3_node->reduced_to = &expr::nil_node;
+
+            root_3_node->kind = expr::NodeKind::Number;
+            root_3_node->number = 2.0;
 
 
-
-            App::app_state->root_node = sub_node;
+            App::app_state->root_node = root_1_sub_node;
             // expr::Result algebra_result = expr::SimplifyWithSteps(App::app_state->solutions_arena, parse_result.root);
             // algebra::PrintSteps(algebra_result.steps);
         }
@@ -444,7 +471,10 @@ EntryPoint(U64 argument_count, char** arguments)
 		Clay_Raylib_Render(renderCommands, App::app_state->fonts);
         char debug_buffer[1024];
         sb_stbsp_snprintf(debug_buffer, sizeof(debug_buffer), "%s%d", "Num chars: ", App::app_state->input_box.text.size);
-        DrawTextEx(App::app_state->fonts[0], debug_buffer, Vector2{500, 0}, 16.0f, 0.0f, Color{0, 0, 0, 255}); 
+        F32 screen_width = GetScreenWidth();
+        DrawTextEx(App::app_state->fonts[0], debug_buffer, Vector2{screen_width-100, 0}, 16.0f, 0.0f, Color{0, 0, 0, 255});
+        DrawFPS(screen_width/2, 0);
+
 
         bool text_input_is_focused = true; // debug, make it work on mouse pointer clicks
         // render cursor
@@ -467,10 +497,10 @@ EntryPoint(U64 argument_count, char** arguments)
         //             DrawRectangleRoundedLinesEx(r, 0.5f, 0, 1, {255, 160, 40, 255});
         // }
 
-        if (App::app_state->highlight_root)
+        if (App::app_state->hovered_box)
         {
 
-            expr::Node* hovered_root = App::app_state->hovered_box->node->highlight_root;
+            expr::Node* hovered_root = App::app_state->hovered_box->highlight_root;
             U32 line = App::app_state->hovered_box->line_index;
 
             App::app_state->current_mark++;

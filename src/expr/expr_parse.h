@@ -191,7 +191,7 @@ struct Node
 	Node* reduced_from;
 
 	// sb: the nearest ancestor that forms a meaningful visual group (binary, nary, or self if root)
-	Node* highlight_root;	// used for highlight on hover without wakling the tree at runtime
+	// Node* highlight_root;	
 	U32 visit_mark;
 
 	// sb: free list link
@@ -292,7 +292,6 @@ struct ParseResult
 
 global read_only Node nil_node = 
 {
-	&nil_node,
 	&nil_node,
 	&nil_node,
 	&nil_node,
