@@ -119,6 +119,8 @@ struct State
 	Font fonts[2];
 	// expr::Node* highlight_root;
 	NodeBox* hovered_box;
+	expr::Node* selected_root;
+	U32 selected_line;
 	U32 current_mark{};
 
 	// ui state

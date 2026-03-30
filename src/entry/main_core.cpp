@@ -206,7 +206,9 @@ internal void EmitToken(expr::Node* node, expr::Node* highlight_root, char const
 			// App::app_state->highlight_root = node->highlight_root;
 			App::app_state->hovered_box = &box;
 			// custom->expr_node.hovered_highlight_group = node->highlight_group;
+			
 		}
+
 	};
 }
 

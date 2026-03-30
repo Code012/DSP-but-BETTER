@@ -332,6 +332,8 @@ EntryPoint(U64 argument_count, char** arguments)
             prod_node->nary_first   = pnum_node1;
             prod_node->nary_next    = pnum_node2;
             prod_node->num_operands = 4;
+            prod_node->reduced_to   = new_num_node;
+            prod_node->reduced_from = &expr::nil_node;
             // prod_node->highlight_root = prod_node;
             prod_node->id           = 2;
 
@@ -377,11 +379,15 @@ EntryPoint(U64 argument_count, char** arguments)
             root_2_sub_node->bin_right = new_num_node;
             root_2_sub_node->bin_ops = expr::BinOpKind::Minus;
             root_2_sub_node->kind = expr::NodeKind::BinaryOp;
+            root_2_sub_node->reduced_to = root_3_node;
+            root_2_sub_node->reduced_from = root_1_sub_node;
             // root_2_sub_node->highlight_root = root_2_sub_node;
 
             // new_num_node->highlight_root = root_2_sub_node;
             new_num_node->kind = expr::NodeKind::Number;
             new_num_node->number = 115.0;
+            new_num_node->reduced_from = prod_node;
+            new_num_node->reduced_to = &expr::nil_node;
 
             // Step 3
             root_2_sub_node->reduced_to = root_3_node;
@@ -390,6 +396,8 @@ EntryPoint(U64 argument_count, char** arguments)
 
             root_3_node->kind = expr::NodeKind::Number;
             root_3_node->number = 2.0;
+            root_3_node->reduced_to = &expr::nil_node;
+            root_3_node->reduced_from = root_2_sub_node;
 
 
             App::app_state->root_node = root_1_sub_node;
@@ -497,6 +505,9 @@ EntryPoint(U64 argument_count, char** arguments)
         //             DrawRectangleRoundedLinesEx(r, 0.5f, 0, 1, {255, 160, 40, 255});
         // }
 
+
+        
+        // TODO(sb): Compress repeated highlight logic
         if (App::app_state->hovered_box)
         {
 
@@ -525,10 +536,56 @@ EntryPoint(U64 argument_count, char** arguments)
                 0.5f,
                 0,
                 {255, 180, 80, 80});
-            DrawRectangleRoundedLinesEx(r, 0.5f, 0, 1, {255, 160, 40, 255});
+            DrawRectangleRoundedLinesEx(r, 0.5f, 0, 1, {255, 140, 40, 220});
         }
 
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+        {
+            if (App::app_state->hovered_box)
+            {
 
+                App::app_state->selected_root = App::app_state->hovered_box->highlight_root;
+                App::app_state->selected_line = App::app_state->hovered_box->line_index;
+            }
+            else
+            {
+                App::app_state->selected_root = &expr::nil_node;
+            }
+        }
+
+        if (App::app_state->selected_root)
+        {
+            U32 line = App::app_state->selected_line;
+            App::app_state->current_mark++;
+                
+            for (auto* iter = App::app_state->selected_root; !NodeIsNil(iter); iter = iter->reduced_to, ++line)
+            {
+
+                MarkSubTree(iter);
+                Rng2F32 result_rect{std::numeric_limits<F32>::max(), std::numeric_limits<F32>::max(), std::numeric_limits<F32>::min(), std::numeric_limits<F32>::min()};
+
+
+                for (NodeBox& box : App::app_state->node_boxes)
+                {
+                    if (box.line_index == line &&
+                        box.node->visit_mark == App::app_state->current_mark)
+                    {
+                        result_rect = RectUnion(result_rect, box.rect);
+                    }
+                }
+
+
+                F32 padding = 6;
+                Rectangle r = {result_rect.x0-padding, result_rect.y0-padding, 
+                    (result_rect.x1 - result_rect.x0) + padding*2, 
+                    (result_rect.y1 - result_rect.y0) + padding*2};
+                DrawRectangleRounded(r,
+                    0.5f,
+                    0,
+                    {80, 120, 255, 100});
+                DrawRectangleRoundedLinesEx(r, 0.5f, 0, 1, {40, 80, 220, 255});
+            }
+        }
 		EndDrawing();
 	}
 	
